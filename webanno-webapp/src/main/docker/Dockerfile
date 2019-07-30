@@ -21,7 +21,7 @@ ENV LANG en_US.UTF-8
 
 WORKDIR /opt/webanno
 
-COPY @docker.jarfile@ webanno-standalone.jar
+COPY webanno-standalone-3.6.0-SNAPSHOT.jar webanno-standalone.jar
 
 # this will be the WebAnno home folder
 RUN mkdir /export
