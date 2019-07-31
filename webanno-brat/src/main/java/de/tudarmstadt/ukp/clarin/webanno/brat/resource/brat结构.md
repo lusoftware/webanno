@@ -1,0 +1,23 @@
+## brat结构
+1. 界面
+- svg
+    - 自定义标签
+    - group
+        - background
+            - rect 每一行背景色
+        - glow
+        - highlight 标注区域的颜色高亮 每个标注都会有一个
+        - text 对应每一行
+            - span 行间隙
+            - textrow
+                - text 每个单词和空格
+        - row 每一行的标注
+            - group 每个单词起始位置
+                - group 高亮 当前选中的标注才会高亮 才有内容
+                    - rect 上方的高亮
+                - group (class span)
+                    - rect 标注上方矩形
+                    - text 标注的内容
+                    - path 花括号
+        - num
+            - text 行号

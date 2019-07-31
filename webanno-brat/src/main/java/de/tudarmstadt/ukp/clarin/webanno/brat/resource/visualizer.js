@@ -1626,6 +1626,8 @@ var Visualizer = (function($, window, undefined) {
       var drawing = false;
       var redraw = false;
 
+      // ============================== 渲染方法 生成SVG ==============================
+
       var renderDataReal = function(sourceData) {
 Util.profileEnd('before render');
 Util.profileStart('render');
@@ -1644,6 +1646,8 @@ Util.profileStart('init');
         redraw = false;
         drawing = true;
 
+
+
 // WEBANNO EXTENSION BEGIN - RTL support - mode switch
 	    rtlmode = sourceData.rtl_mode;
 // WEBANNO EXTENSION END
@@ -1655,6 +1659,9 @@ Util.profileStart('init');
 // WEBANNO EXTENSION BEGIN - #406 - Sharable link for annotation documents  
 	    args = sourceData.args;
 // WEBANNO EXTENSION END - #406 - Sharable link for annotation documents  
+
+        // ============================== 格式化数据 ==============================
+        // ============================== SVG基础数据设置（宽度 字体） ==============================
 
         if (sourceData) setData(sourceData);
         showMtime();
@@ -1690,6 +1697,9 @@ Util.profileStart('init');
 /*
         var backgroundGroup = svg.group({ 'class': 'background' });
 */
+
+        // ============================== 生成svg group ==============================
+
         var backgroundGroup = svg.group({ 'class': 'background', 'pointer-events': 'none' });
 // END WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
         var glowGroup = svg.group({ 'class': 'glow' });
@@ -1698,6 +1708,8 @@ Util.profileStart('init');
 
 Util.profileEnd('init');
 Util.profileStart('measures');
+
+        // ============================== 确定最长单词长度 ==============================
 
         var sizes = getTextAndSpanTextMeasurements();
         data.sizes = sizes;
@@ -1739,6 +1751,8 @@ Util.profileStart('chunks');
         var twoBarWidths; // HACK to avoid measuring space's width
         var openTextHighlights = {};
         var textMarkedRows = [];
+
+       // ============================== 确定关系文字长度 ==============================
 
         addArcTextMeasurements(sizes);
 
@@ -1869,6 +1883,9 @@ Util.profileStart('chunks');
 
         $.each(data.chunks, function(chunkNo, chunk) {
           var spaceWidth = 0;
+
+          // ============================== 单词之间空格 ==============================
+
           if (chunk.lastSpace) {
 // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
 /*
@@ -1903,6 +1920,8 @@ Util.profileStart('chunks');
 // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
           }
           
+          // ============================== 添加group到chunk ==============================
+
           chunk.group = svg.group(row.group);
           chunk.highlightGroup = svg.group(chunk.group);
 
@@ -1920,6 +1939,9 @@ Util.profileStart('chunks');
           $.each(chunk.fragments, function(fragmentNo, fragment) {
             var span = fragment.span;
             var spanDesc = spanTypes[span.type];
+
+            // ============================== 设置标注颜色 ==============================
+
             var bgColor = ((spanDesc && spanDesc.bgColor) ||
                            (spanTypes.SPAN_DEFAULT &&
                             spanTypes.SPAN_DEFAULT.bgColor) || '#ffffff');
@@ -1949,6 +1971,8 @@ Util.profileStart('chunks');
               'class': 'span',
             });
 
+            // ============================== 设置高亮宽高（ 唯一 ）==============================
+
             var fragmentHeight = 0;
 
             if (!y) y = -sizes.texts.height;
@@ -1971,6 +1995,8 @@ Util.profileStart('chunks');
             ww -= 2*boxTextMargin.x;
             var rectClass = 'span_' + (span.cue || span.type) + ' span_default'; // TODO XXX first part unneeded I think; remove
 
+            // ============================== 设置标注上方矩形宽高 ==============================
+
             // attach e.g. "False_positive" into the type
             if (span.comment && span.comment.type) { rectClass += ' '+span.comment.type; }
             // inner coordinates of fragment (excluding margins)
@@ -1986,6 +2012,9 @@ Util.profileStart('chunks');
 
             var shadowRect;
             var markedRect;
+
+            // ============================== 添加标注上方高亮 ==============================
+
             if (span.marked) {
               markedRect = svg.rect(chunk.highlightGroup,
                   bx - markedSpanSize, by - markedSpanSize,
@@ -1996,6 +2025,7 @@ Util.profileStart('chunks');
                   rx: markedSpanSize,
                   ry: markedSpanSize,
               });
+              showSvg(500);
 // WEBANNO EXTENSION BEGIN - Issue #1319 - Glowing highlight causes 100% CPU load
 /*
               svg.other(markedRect, 'animate', {
@@ -2020,6 +2050,9 @@ Util.profileStart('chunks');
             // .match() removes unconfigured shadows, which were
             // always showing up as black.
             // TODO: don't hard-code configured shadowclasses.
+
+            // ============================== 添加标注上方矩形 ==============================
+
             if (span.shadowClass &&
                 span.shadowClass.match('True_positive|False_positive|False_negative|AnnotationError|AnnotationWarning|AnnotatorNotes|Normalized|AnnotationIncomplete|AnnotationUnconfirmed|rectEditHighlight|EditHighlight_arc|MissingAnnotation|ChangedAnnotation ')) {
               shadowRect = svg.rect(fragment.group,
@@ -2046,7 +2079,7 @@ Util.profileStart('chunks');
                 'data-fragment-id': span.segmentedOffsetsMap[fragment.id],
                 'strokeDashArray': span.attributeMerge.dashArray,
               });
-
+              showSvg(500);
 // BEGIN WEBANNO EXTENSION - WebAnno does not support marking normalizations
 /*
             // TODO XXX: quick nasty hack to allow normalizations
@@ -2090,8 +2123,11 @@ Util.profileStart('chunks');
                   line(xx, yy + hh + Configuration.visual.margin.y - span.floor),
                   { 'class': 'boxcross' });
             }
-            svg.text(fragment.group, x, y - span.floor, data.spanAnnTexts[fragment.glyphedLabelText], { fill: fgColor });
 
+            // ============================== 添加标注内容文字 ==============================
+
+            svg.text(fragment.group, x, y - span.floor, data.spanAnnTexts[fragment.glyphedLabelText], { fill: fgColor });
+            showSvg(500);
             // Make curlies to show the fragment
             if (fragment.drawCurly) {
               var curlyColor = 'grey';
@@ -2108,6 +2144,8 @@ Util.profileStart('chunks');
 // WEBANNO EXTENSION END
                 curlyColor = Util.adjustColorLightness(bgColor, -0.6);
               }
+
+              // ============================== 添加标注范围花括号 ==============================
 
               var bottom = yy + hh + Configuration.visual.margin.y - span.floor + 1;
               svg.path(fragment.group, svg.createPath()
@@ -2126,6 +2164,8 @@ Util.profileStart('chunks');
               chunkTo = Math.max(fragment.curly.to, chunkTo);
               fragmentHeight = Math.max(Configuration.visual.curlyHeight, fragmentHeight);
             }
+
+            // ============================== 标注关系支持 ==============================
 
             if (fragment == span.headFragment) {
               // find the gap to fit the backwards arcs, but only on
@@ -2548,7 +2588,7 @@ Util.profileStart('chunks');
         rows.push(row);
         
 Util.profileEnd('chunks');
-Util.profileStart('arcsPrep');
+Util.profileStart('arcsPrep'); // ============================== 标注关系 ==============================
 
         var arrows = {};
         var arrow = makeArrow(defs, 'none');
@@ -3196,7 +3236,7 @@ Util.profileStart('arcs');
           } // arc rows
         }); // arcs
 
-Util.profileEnd('arcs');
+Util.profileEnd('arcs'); 
 Util.profileStart('fragmentConnectors');
 
         $.each(data.spans, function(spanNo, span) {
@@ -3259,7 +3299,7 @@ Util.profileStart('fragmentConnectors');
         }); // spans
 
 Util.profileEnd('fragmentConnectors');
-Util.profileStart('rows');
+Util.profileStart('rows'); // ============================== 每个token的标注位置 ==============================
 
         // position the rows
         var y = Configuration.visual.margin.y;
@@ -3267,6 +3307,9 @@ Util.profileStart('rows');
 /*
         var sentNumGroup = svg.group({'class': 'sentnum'});
 */
+
+        // ============================== 生成行号和对应背景group ==============================
+
         var sentNumGroup = svg.group({'class': 'sentnum unselectable'});
 // END WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
         var currentSent;
@@ -3371,7 +3414,10 @@ Util.profileStart('rows');
             var text = svg.text(link, sentNumMargin - Configuration.visual.margin.x, y - rowPadding,
                 '' + row.sentence, { 'data-sent': row.sentence });
 */
-			// Render sentence number as link
+      // Render sentence number as link
+      
+        // ============================== 添加num group ==============================
+
             var text;
             if (rtlmode) {
               text = svg.text(link, canvasWidth - sentNumMargin + Configuration.visual.margin.x, y - rowPadding,
@@ -3441,6 +3487,8 @@ Util.profileStart('rows');
 Util.profileEnd('rows');
 Util.profileStart('chunkFinish');
 
+        // ============================== 设置每行单词及空格（text group）
+
         // chunk index sort functions for overlapping fragment drawing
         // algorithm; first for left-to-right pass, sorting primarily
         // by start offset, second for right-to-left pass by end
@@ -3448,7 +3496,7 @@ Util.profileStart('chunkFinish');
         var currentChunk;
         var lrChunkComp = function(a,b) {
           var ac = currentChunk.fragments[a];
-          var bc = currentChunk.fragments[b]
+          var bc = currentChunk.fragments[b];
           var startDiff = Util.cmp(ac.from, bc.from);
           return startDiff != 0 ? startDiff : Util.cmp(bc.to-bc.from, ac.to-ac.from);
         }
@@ -3794,9 +3842,7 @@ Util.profileStart('finish');
         }
 // WEBANNO EXTENSION END        
         
-        $svg.width(canvasWidth);
-        $svg.height(y);
-        $svg.attr("viewBox", "0 0 " + canvasWidth + " " + y);
+        showSvg(y);
 
         // WEBANNO BEGIN #331 - Interface jumps to the top
         // Originally, this code was within the oversized > 0 block above, but we moved it here
@@ -3928,6 +3974,15 @@ Util.profileReport();
         annotationFileNotFound: true,
         isDirectoryError: true
       };
+
+      var showSvg = function(y) {
+        $svg.width(canvasWidth);
+        $svg.height(y);
+        $svg.attr("viewBox", "0 0 " + canvasWidth + " " + y);
+      }
+
+      // ============================== 界面初始化时渲染方法 ==============================
+
       var renderData = function(sourceData) {
         Util.profileEnd('invoke getDocument');
         if (sourceData && sourceData.exception) {
@@ -3964,6 +4019,8 @@ Util.profileReport();
         }
       };
       
+      // ============================== 数据更新时界面渲染方法 ==============================
+
 // BEGIN WEBANNO EXTENSION - #790 - Differential updates for brat view 
       var renderDataPatch = function(patchData) {
         Util.profileEnd('invoke getDocument');
