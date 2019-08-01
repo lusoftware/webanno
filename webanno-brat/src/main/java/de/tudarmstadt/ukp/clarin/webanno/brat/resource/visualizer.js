@@ -609,12 +609,14 @@ var Visualizer = (function($, window, undefined) {
     };
 
     var setData = function(_sourceData) {
+        console.debug("sourceData",_sourceData);
       if (!args) args = {};
       sourceData = _sourceData;
       dispatcher.post("newSourceData", [sourceData]);
       data = new DocumentData(sourceData.text);
 
       // collect annotation data
+      // ============================== 标注信息根据id添加到data.spans ==============================
       $.each(sourceData.entities, function(entityNo, entity) {
         // offsets given as array of (start, end) pairs
         var span =
@@ -681,6 +683,7 @@ var Visualizer = (function($, window, undefined) {
         return tmp < 0 ? -1 : 1;
       };
       // split spans into span fragments (for discontinuous spans)
+      // ============================== span分段 添加 fragments ==============================
       $.each(data.spans, function(spanNo, span) {
         $.each(span.offsets, function(offsetsNo, offsets) {
           var from = parseInt(offsets[0], 10);
@@ -871,6 +874,7 @@ var Visualizer = (function($, window, undefined) {
         });
       });
       // sort fragments by beginning, then by end
+      // ============================== 排序fragments ==============================
       sortedFragments.sort(function(a, b) {
         var x = a.from;
         var y = b.from;
@@ -889,6 +893,7 @@ var Visualizer = (function($, window, undefined) {
       var space;
       var chunk = null;
       // token containment testing (chunk recognition)
+      // ============================== 将重叠fragment合并成chunk ==============================
       $.each(sourceData.token_offsets, function() {
         var from = this[0];
         var to = this[1];
@@ -958,7 +963,7 @@ var Visualizer = (function($, window, undefined) {
         });
 */
       var sentenceNo = sourceData.sentence_number_offset - 1;
-
+      // ============================== chunk添加sentence ==============================
       $.each(sourceData.sentence_offsets, function() {
         var from = this[0];
         var to = this[1];
@@ -987,6 +992,7 @@ var Visualizer = (function($, window, undefined) {
       // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
 
       // assign fragments to appropriate chunks
+      // ============================== 添加fragments到chunk ==============================
       var currentChunkId = 0;
       var chunk;
       $.each(sortedFragments, function(fragmentId, fragment) {
@@ -1152,8 +1158,8 @@ var Visualizer = (function($, window, undefined) {
         $.each(span.fragments, function(fragmentNo, fragment) {
           if (!data.towers[fragment.towerId]) {
             data.towers[fragment.towerId] = [];
-            fragment.drawCurly = true;
-            fragment.span.drawCurly = true;
+            fragment.drawCurly = false;
+            fragment.span.drawCurly = false;
           }
           data.towers[fragment.towerId].push(fragment);
         });
@@ -1307,7 +1313,7 @@ var Visualizer = (function($, window, undefined) {
           return;
         }
       }); // markedText
-
+      console.debug("data",data);
       dispatcher.post("dataReady", [data]);
     };
 
@@ -1840,6 +1846,8 @@ var Visualizer = (function($, window, undefined) {
       }
       var inf = 1.0 / 0.0;
 
+      // ============================== 计算标注相对文字的位置  floor ==============================
+
       $.each(data.spanDrawOrderPermutation, function(spanIdNo, spanId) {
         var span = data.spans[spanId];
         var spanDesc = spanTypes[span.type];
@@ -1953,7 +1961,7 @@ var Visualizer = (function($, window, undefined) {
             reservations[i][floor].push([from, to, headroom]); // XXX maybe add fragment; probably unnecessary
           }
         }
-        span.floor = carpet + thisCurlyHeight;
+        span.floor = ( carpet + thisCurlyHeight ) * 1.6 + 2; // 增加每行高度
       });
 
       $.each(data.chunks, function(chunkNo, chunk) {
@@ -2104,7 +2112,6 @@ var Visualizer = (function($, window, undefined) {
                 ry: markedSpanSize
               }
             );
-            showSvg(500);
             // WEBANNO EXTENSION BEGIN - Issue #1319 - Glowing highlight causes 100% CPU load
             /*
               svg.other(markedRect, 'animate', {
@@ -2130,8 +2137,6 @@ var Visualizer = (function($, window, undefined) {
           // always showing up as black.
           // TODO: don't hard-code configured shadowclasses.
 
-          // ============================== 添加标注上方矩形 ==============================
-
           if (
             span.shadowClass &&
             span.shadowClass.match(
@@ -2155,6 +2160,9 @@ var Visualizer = (function($, window, undefined) {
             chunkTo = Math.max(bx + bw + rectShadowSize, chunkTo);
             fragmentHeight = Math.max(bh + 2 * rectShadowSize, fragmentHeight);
           }
+          
+          // ============================== 添加标注上方矩形 ==============================
+
           fragment.rect = svg.rect(fragment.group, bx, by, bw, bh, {
             class: rectClass,
             fill: bgColor,
@@ -2165,7 +2173,6 @@ var Visualizer = (function($, window, undefined) {
             "data-fragment-id": span.segmentedOffsetsMap[fragment.id],
             strokeDashArray: span.attributeMerge.dashArray
           });
-          showSvg(500);
           // BEGIN WEBANNO EXTENSION - WebAnno does not support marking normalizations
           /*
             // TODO XXX: quick nasty hack to allow normalizations
@@ -2183,6 +2190,10 @@ var Visualizer = (function($, window, undefined) {
             chunkFrom = Math.min(bx, chunkFrom);
             chunkTo = Math.max(bx + bw, chunkTo);
             fragmentHeight = Math.max(bh, fragmentHeight);
+          }
+
+          if( span.floor!==0  ){
+            span.floor += 4;
           }
 
           fragment.rectBox = { x: bx, y: by - span.floor, width: bw, height: bh };
@@ -2224,8 +2235,7 @@ var Visualizer = (function($, window, undefined) {
 
           // ============================== 添加标注内容文字 ==============================
 
-          svg.text(fragment.group, x, y - span.floor, data.spanAnnTexts[fragment.glyphedLabelText], { fill: fgColor });
-          showSvg(500);
+          // svg.text(fragment.group, x, y - span.floor, data.spanAnnTexts[fragment.glyphedLabelText], { fill: fgColor });
           // Make curlies to show the fragment
           if (fragment.drawCurly) {
             var curlyColor = "grey";
@@ -2680,7 +2690,7 @@ var Visualizer = (function($, window, undefined) {
         currentX += rtlmode ? -boxWidth : boxWidth;
         // WEBANNO EXTENSION END
       }); // chunks
-
+      showSvg(500);
       // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
       // Add trailing empty rows
       while (sentenceNumber < sourceData.sentence_offsets.length + sourceData.sentence_number_offset - 1) {
@@ -3522,6 +3532,9 @@ var Visualizer = (function($, window, undefined) {
           // plain "standard" bg
           bgClass = "background0";
         }
+
+        // ============================== 添加background ==============================
+
         svg.rect(
           backgroundGroup,
           0,
@@ -3575,7 +3588,7 @@ var Visualizer = (function($, window, undefined) {
           // Render sentence number as link
 
           // ============================== 添加num group ==============================
-
+          // ============================== 添加行号 ==============================
           var text;
           if (rtlmode) {
             text = svg.text(
@@ -3651,6 +3664,8 @@ var Visualizer = (function($, window, undefined) {
           }
         }
 
+        // ============================== 每一行添加translate属性 移动每行位置 ==============================
+
         var rowY = y - rowPadding;
         if (roundCoordinates) {
           rowY = rowY | 0;
@@ -3663,7 +3678,7 @@ var Visualizer = (function($, window, undefined) {
       Util.profileEnd("rows");
       Util.profileStart("chunkFinish");
 
-      // ============================== 设置每行单词及空格（text group）
+      // ============================== 设置每行单词及空格（text group）==============================
 
       // chunk index sort functions for overlapping fragment drawing
       // algorithm; first for left-to-right pass, sorting primarily
@@ -3921,6 +3936,7 @@ var Visualizer = (function($, window, undefined) {
             }
             // WEBANNO EXTENSION END - #361 Avoid rendering exception with zero-width spans
             // Render highlight
+            // ============================== 添加高亮文字 ==============================
             svg.rect(
               highlightGroup,
               fragment.highlightPos.x,
@@ -4325,6 +4341,9 @@ var Visualizer = (function($, window, undefined) {
         // WEBANNO EXTENSION END
 
         highlight = [];
+
+        // ============================== 添加文字高亮 ==============================
+
         $.each(span.fragments, function(fragmentNo, fragment) {
           highlight.push(
             svg.rect(
@@ -4376,6 +4395,9 @@ var Visualizer = (function($, window, undefined) {
                 add('g[data-from="' + id + '"], g[data-to="' + id + '"]' + equivSelector).
                 addClass('highlight');
 */
+
+          // ============================== 给父元素添加highlight类 增加stroke-width ==============================
+
           highlightArcs = $svg
             .find(equivSelector.join(", "))
             .parent()
