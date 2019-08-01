@@ -21,3 +21,76 @@
                     - path 花括号
         - num
             - text 行号
+
+2. code
+- dispatcher
+- visualizer
+    - 数据结构
+        - DocumentData
+        - Span
+        - Fragment
+        - Chunk
+        - Arc
+    - 数据解析工具
+        - tokenizer
+        - sentence splitter
+        - setDefaultData 错误数据矫正
+    - 其他工具
+        - isRTL 判断文字翻转
+        - bgToFgColor 标注文字颜色
+    - 可视化（ 重点 ）
+        - Visualizer
+            - 数据初始化（ 字体、颜色、宽高 ）
+            - 注册自定义事件
+                - renderData 界面初始化渲染数据
+                - renderDataPatch 界面修改渲染数据
+            - 主要方法
+                - setData 格式化数据
+                - renderDataReal 数据渲染
+                    - SVG基础数据设置
+                    - chunk
+                        - fragment
+            - 阶段
+                - render
+                - Init
+                - measures
+                - chunks
+                - arcsPrep
+                - arcs
+                - fragmentConnectors
+                - rows
+                - chunkFinish
+                - finish
+    - 主要数据格式
+        - sourceData
+            - action 当前选中的标注id
+            - args
+                - focus
+            - collection project name
+            - document id
+            - entities 所有标注
+                - 标注id
+                - 标注类型
+                - 标注位置
+                - 标注颜色
+            - font_zoom 字体缩放
+            - sentence_offsets 每一句从第几个字符开始到结束
+            - text document整篇文字
+            - token_offsets 每个token从第几个字符开始到结束
+        - data 
+            - chunks 标注分段
+            - sizes 文字宽高
+                - fragments 所有标注内容文字的宽度
+                - texts 所有单词的宽度
+            - spans 每个标注对应的信息
+                - fragments
+                - headFragment
+                - 
+- visualizer_ui
+- annotation_ui
+
+3. 修改步骤
+- 两侧添加括号 easy
+- 增加每行距离 general
+- 给每个单词添加标识符 difficult first
+- 标识符绑定数据 very difficult
