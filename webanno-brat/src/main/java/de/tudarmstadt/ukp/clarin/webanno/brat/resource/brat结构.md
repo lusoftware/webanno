@@ -48,8 +48,8 @@
                 - setData 格式化数据
                 - renderDataReal 数据渲染
                     - SVG基础数据设置
-                    - chunk
-                        - fragment
+                    - chunkInvisible a
+                        - fInvisible a
             - 阶段
                 - render
                 - Init
@@ -86,11 +86,29 @@
                 - fragments
                 - headFragment
                 - 
-- visualizer_ui
-- annotation_ui
+- visualize
+r_ui
+- annotatio
+n_ui
+
 
 3. 修改步骤
+
 - 两侧添加括号 easy
 - 增加每行距离 general
 - 给每个单词添加标识符 difficult first
+    在chunk增加每个token 包括from to text信息 T
+    将chunk里token放入对应的fragments中 T
+    计算token的curly值
 - 标识符绑定数据 very difficult
+
+entities > span > fragments
+token_offsets > chunks 确定chunk的text
+将fragments添加到chunks中 排序fragments 添加fragment的text
+根据chunk的text生成svg 计算chunk和fragment文字宽度
+
+主动标注
+被动标注
+    批改
+
+需要解决的问题 跨行 换行 数据绑定 颜色
