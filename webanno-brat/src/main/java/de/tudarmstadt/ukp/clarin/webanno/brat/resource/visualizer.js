@@ -1167,9 +1167,9 @@ var Visualizer = (function($, window, undefined) {
       var lastFragment = null;
       var towerId = -1;
       $.each(sortedFragments, function(i, fragment) {
-        if (!lastFragment || (lastFragment.from != fragment.from || lastFragment.to != fragment.to)) {
-          towerId++;
-        }
+        // if (!lastFragment || (lastFragment.from != fragment.from || lastFragment.to != fragment.to)) {
+        //   towerId++;
+        // }
         fragment.towerId = towerId;
         lastFragment = fragment;
       }); // sortedFragments
