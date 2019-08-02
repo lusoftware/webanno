@@ -609,7 +609,8 @@ var Visualizer = (function($, window, undefined) {
     };
 
     var setData = function(_sourceData) {
-        console.debug("sourceData",_sourceData);
+      console.debug("sourceData", _sourceData);
+      window.sourceData = _sourceData;
       if (!args) args = {};
       sourceData = _sourceData;
       dispatcher.post("newSourceData", [sourceData]);
@@ -892,13 +893,22 @@ var Visualizer = (function($, window, undefined) {
       var chunkNo = 0;
       var space;
       var chunk = null;
+      // TODO:extension start
+      var tokens = [];
+      // TODO:extension end
       // token containment testing (chunk recognition)
-      // ============================== 将重叠fragment合并成chunk ==============================
+      // ============================== 根据fragment生成chunk ==============================
       $.each(sourceData.token_offsets, function() {
         var from = this[0];
         var to = this[1];
         if (firstFrom === null) firstFrom = from;
-
+        // TODO:extension start
+        tokens.push({
+          from,
+          to,
+          text: data.text.substring(from, to)
+        });
+        // TODO:extension end
         // Replaced for speedup; TODO check correctness
         // inSpan = false;
         // $.each(data.spans, function(spanNo, span) {
@@ -931,7 +941,11 @@ var Visualizer = (function($, window, undefined) {
         //               (index,     text, from,      to, space) {
         chunk = new Chunk(chunkNo++, text, firstFrom, to, space);
         chunk.lastSpace = space;
+        chunk.tokens = tokens;
+        tokens = [];
+        // TODO:extension start
         data.chunks.push(chunk);
+        // TODO:extension end
         lastTo = to;
         firstFrom = null;
       });
@@ -996,8 +1010,17 @@ var Visualizer = (function($, window, undefined) {
       var currentChunkId = 0;
       var chunk;
       $.each(sortedFragments, function(fragmentId, fragment) {
+        // while (fragment.from > (chunk = data.chunks[currentChunkId]).from || fragment.to < chunk.to) currentChunkId++;
         while (fragment.to > (chunk = data.chunks[currentChunkId]).to) currentChunkId++;
         chunk.fragments.push(fragment);
+        fragment.tokens = [];
+        // TODO:extension start
+        chunk.tokens.forEach(token => {
+          if (token.from >= fragment.from && token.to <= fragment.to) {
+            fragment.tokens.push(token);
+          }
+        });
+        // TODO:extension end
         fragment.text = chunk.text.substring(fragment.from - chunk.from, fragment.to - chunk.from);
         fragment.chunk = chunk;
       });
@@ -1158,8 +1181,9 @@ var Visualizer = (function($, window, undefined) {
         $.each(span.fragments, function(fragmentNo, fragment) {
           if (!data.towers[fragment.towerId]) {
             data.towers[fragment.towerId] = [];
-            fragment.drawCurly = false;
-            fragment.span.drawCurly = false;
+            // curly渲染配置
+            fragment.drawCurly = true;
+            fragment.span.drawCurly = true;
           }
           data.towers[fragment.towerId].push(fragment);
         });
@@ -1313,7 +1337,8 @@ var Visualizer = (function($, window, undefined) {
           return;
         }
       }); // markedText
-      console.debug("data",data);
+      console.debug("data", data);
+      window.data = data;
       dispatcher.post("dataReady", [data]);
     };
 
@@ -1382,6 +1407,26 @@ var Visualizer = (function($, window, undefined) {
       return new Measurements(widths, bbox.height, bbox.y);
     };
 
+    var getTokenMeasurements = function(fragment, token, text) {
+      var firstChar = token.from - fragment.chunk.from;
+      var lastChar = token.to - fragment.chunk.from - 1;
+      if (firstChar < text.getNumberOfChars()) {
+        startPos = text.getStartPositionOfChar(firstChar).x;
+      } else {
+        startPos = text.getComputedTextLength();
+      }
+      endPos = lastChar < firstChar ? startPos : text.getEndPositionOfChar(lastChar).x;
+
+      if (rtlmode) {
+        startPos = -startPos;
+        endPos = -endPos;
+      }
+      token.curly = {
+        from: Math.min(startPos, endPos),
+        to: Math.max(startPos, endPos)
+      };
+    };
+
     var getTextAndSpanTextMeasurements = function() {
       // get the span text sizes
       var chunkTexts = {}; // set of span texts
@@ -1399,6 +1444,9 @@ var Visualizer = (function($, window, undefined) {
         chunkText.push.apply(chunkText, chunk.markedTextEnd);
       });
       var textSizes = getTextMeasurements(chunkTexts, undefined, function(fragment, text) {
+        fragment.tokens.forEach(token => {
+          getTokenMeasurements(fragment, token, text);
+        });
         if (fragment instanceof Fragment) {
           // it's a fragment!
           // measure the fragment text position in pixels
@@ -1435,12 +1483,14 @@ var Visualizer = (function($, window, undefined) {
           var lastChar = fragment.to - fragment.chunk.from - 1;
 
           // Adjust for XML whitespace (#832, #1009)
-          var textUpToFirstChar = fragment.chunk.text.substring(0, firstChar);
-          var textUpToLastChar = fragment.chunk.text.substring(0, lastChar);
-          var textUpToFirstCharUnspaced = textUpToFirstChar.replace(/\s\s+/g, " ");
-          var textUpToLastCharUnspaced = textUpToLastChar.replace(/\s\s+/g, " ");
-          firstChar -= textUpToFirstChar.length - textUpToFirstCharUnspaced.length;
-          lastChar -= textUpToLastChar.length - textUpToLastCharUnspaced.length;
+          // TODO:extension start
+          // var textUpToFirstChar = fragment.chunk.text.substring(0, firstChar);
+          // var textUpToLastChar = fragment.chunk.text.substring(0, lastChar);
+          // var textUpToFirstCharUnspaced = textUpToFirstChar.replace(/\s\s+/g, " ");
+          // var textUpToLastCharUnspaced = textUpToLastChar.replace(/\s\s+/g, " ");
+          // firstChar -= textUpToFirstChar.length - textUpToFirstCharUnspaced.length;
+          // lastChar -= textUpToLastChar.length - textUpToLastCharUnspaced.length;
+          // TODO:extension end
 
           // BEGIN WEBANNO EXTENSION - RTL support
           // - #265 rendering with quotation marks
@@ -1662,7 +1712,8 @@ var Visualizer = (function($, window, undefined) {
           if (width > maxWidth) maxWidth = width;
         }); // tower
         $.each(tower, function(fragmentNo, fragment) {
-          fragment.width = maxWidth;
+          // fragment.width = maxWidth;
+          fragment.width = 20;
         }); // tower
       }); // data.towers
     };
@@ -1791,10 +1842,12 @@ var Visualizer = (function($, window, undefined) {
       Util.profileEnd("init");
       Util.profileStart("measures");
 
-      // ============================== 确定最长单词长度 ==============================
+      // ============================== 计算标注文本的宽度 ==============================
 
       var sizes = getTextAndSpanTextMeasurements();
       data.sizes = sizes;
+
+      // ============================== 计算标注内容的宽度 ==============================
 
       adjustTowerAnnotationSizes();
       var maxTextWidth = 0;
@@ -1961,7 +2014,7 @@ var Visualizer = (function($, window, undefined) {
             reservations[i][floor].push([from, to, headroom]); // XXX maybe add fragment; probably unnecessary
           }
         }
-        span.floor = ( carpet + thisCurlyHeight ) * 1.6 + 2; // 增加每行高度
+        span.floor = (carpet + thisCurlyHeight) * 1.6 + 2; // 增加每行高度
       });
 
       $.each(data.chunks, function(chunkNo, chunk) {
@@ -2097,8 +2150,9 @@ var Visualizer = (function($, window, undefined) {
           var markedRect;
 
           // ============================== 添加标注上方高亮 ==============================
-
-          if (span.marked) {
+          // TODO:extension start
+          var highlightOpen = false;
+          if (span.marked && highlightOpen) {
             markedRect = svg.rect(
               chunk.highlightGroup,
               bx - markedSpanSize,
@@ -2112,6 +2166,7 @@ var Visualizer = (function($, window, undefined) {
                 ry: markedSpanSize
               }
             );
+            // TODO:extension end
             // WEBANNO EXTENSION BEGIN - Issue #1319 - Glowing highlight causes 100% CPU load
             /*
               svg.other(markedRect, 'animate', {
@@ -2160,19 +2215,38 @@ var Visualizer = (function($, window, undefined) {
             chunkTo = Math.max(bx + bw + rectShadowSize, chunkTo);
             fragmentHeight = Math.max(bh + 2 * rectShadowSize, fragmentHeight);
           }
-          
-          // ============================== 添加标注上方矩形 ==============================
 
-          fragment.rect = svg.rect(fragment.group, bx, by, bw, bh, {
-            class: rectClass,
-            fill: bgColor,
-            stroke: borderColor,
-            rx: Configuration.visual.margin.x,
-            ry: Configuration.visual.margin.y,
-            "data-span-id": span.id,
-            "data-fragment-id": span.segmentedOffsetsMap[fragment.id],
-            strokeDashArray: span.attributeMerge.dashArray
+          // TODO:extension start
+          // ============================== 添加标注上方矩形 ==============================
+          // bw换成固定值 20
+          // fragment.rect = svg.rect(fragment.group, bx, by, bw, bh, {
+          //   class: rectClass,
+          //   fill: bgColor,
+          //   stroke: borderColor,
+          //   rx: Configuration.visual.margin.x,
+          //   ry: Configuration.visual.margin.y,
+          //   "data-span-id": span.id,
+          //   "data-fragment-id": span.segmentedOffsetsMap[fragment.id],
+          //   strokeDashArray: span.attributeMerge.dashArray
+          // });
+          fragment.tokens.forEach(token => {
+            var x = (token.curly.from + token.curly.to) / 2;
+            var xx = x - ww / 2;
+            xx += boxTextMargin.x;
+            var bx = xx - Configuration.visual.margin.x - boxTextMargin.x;
+            token.rect = svg.rect(fragment.group, bx, by, 20, bh, {
+              class: rectClass,
+              fill: bgColor,
+              stroke: borderColor,
+              rx: Configuration.visual.margin.x,
+              ry: Configuration.visual.margin.y,
+              "data-span-id": span.id,
+              "data-fragment-id": span.segmentedOffsetsMap[fragment.id],
+              strokeDashArray: span.attributeMerge.dashArray
+            });
           });
+          // TODO:extension end
+
           // BEGIN WEBANNO EXTENSION - WebAnno does not support marking normalizations
           /*
             // TODO XXX: quick nasty hack to allow normalizations
@@ -2192,7 +2266,7 @@ var Visualizer = (function($, window, undefined) {
             fragmentHeight = Math.max(bh, fragmentHeight);
           }
 
-          if( span.floor!==0  ){
+          if (span.floor !== 0) {
             span.floor += 4;
           }
 
@@ -2208,6 +2282,11 @@ var Visualizer = (function($, window, undefined) {
             fragmentHeights[spacedTowerId] = fragment.height;
           }
           $(fragment.rect).attr("y", yy - Configuration.visual.margin.y - span.floor);
+          // TODO:extension start
+          fragment.tokens.forEach(token => {
+            $(token.rect).attr("y", yy - Configuration.visual.margin.y - span.floor);
+          });
+          // TODO:extension end
           if (shadowRect) {
             $(shadowRect).attr("y", yy - rectShadowSize - Configuration.visual.margin.y - span.floor);
           }
@@ -2256,24 +2335,80 @@ var Visualizer = (function($, window, undefined) {
             // ============================== 添加标注范围花括号 ==============================
 
             var bottom = yy + hh + Configuration.visual.margin.y - span.floor + 1;
+            // TODO:extension start
+            // svg.path(
+            //   fragment.group,
+            //   svg
+            //     .createPath()
+            //     .move(fragment.curly.from, bottom + Configuration.visual.curlyHeight)
+            //     .curveC(fragment.curly.from, bottom, x, bottom + Configuration.visual.curlyHeight, x, bottom)
+            //     .curveC(
+            //       x,
+            //       bottom + Configuration.visual.curlyHeight,
+            //       fragment.curly.to,
+            //       bottom,
+            //       fragment.curly.to,
+            //       bottom + Configuration.visual.curlyHeight
+            //     ),
+            //   {
+            //     class: "curly",
+            //     stroke: curlyColor
+            //   }
+            // );
+            var offset = 6;
+            var harf = bh / 2;
             svg.path(
               fragment.group,
               svg
                 .createPath()
                 .move(fragment.curly.from, bottom + Configuration.visual.curlyHeight)
-                .curveC(fragment.curly.from, bottom, x, bottom + Configuration.visual.curlyHeight, x, bottom)
                 .curveC(
-                  x,
+                  fragment.curly.from - offset,
                   bottom + Configuration.visual.curlyHeight,
-                  fragment.curly.to,
-                  bottom,
-                  fragment.curly.to,
-                  bottom + Configuration.visual.curlyHeight
+                  fragment.curly.from,
+                  bottom - harf,
+                  fragment.curly.from - offset,
+                  bottom - harf
+                )
+                .curveC(
+                  fragment.curly.from,
+                  bottom - harf,
+                  fragment.curly.from - offset,
+                  bottom - bh - Configuration.visual.curlyHeight,
+                  fragment.curly.from,
+                  bottom - bh - Configuration.visual.curlyHeight
                 ),
               {
                 class: "curly",
                 stroke: curlyColor
               }
+            );
+            svg.path(
+              fragment.group,
+              svg
+                .createPath()
+                .move(fragment.curly.to, bottom + Configuration.visual.curlyHeight)
+                .curveC(
+                  fragment.curly.to + offset,
+                  bottom + Configuration.visual.curlyHeight,
+                  fragment.curly.to,
+                  bottom - harf,
+                  fragment.curly.to + offset,
+                  bottom - harf,
+                )
+                .curveC(
+                  fragment.curly.to,
+                  bottom - harf,
+                  fragment.curly.to + offset,
+                  bottom - bh - Configuration.visual.curlyHeight,
+                  fragment.curly.to,
+                  bottom - bh - Configuration.visual.curlyHeight
+                ),
+              {
+                class: "curly",
+                stroke: curlyColor
+              }
+            // TODO:extension end
             );
             chunkFrom = Math.min(fragment.curly.from, chunkFrom);
             chunkTo = Math.max(fragment.curly.to, chunkTo);
@@ -2586,11 +2721,13 @@ var Visualizer = (function($, window, undefined) {
             .each(function(index, element) {
               chunk.fragments[index].group = element;
             });
-          $(chunk.group)
-            .find("rect[data-span-id]")
-            .each(function(index, element) {
-              chunk.fragments[index].rect = element;
-            });
+          // TODO:extension start
+          // $(chunk.group)
+          //   .find("rect[data-span-id]")
+          //   .each(function(index, element) {
+          //     chunk.fragments[index].rect = element;
+          //   });
+          // TODO:extension end
         }
 
         // break the text highlights when the row breaks
