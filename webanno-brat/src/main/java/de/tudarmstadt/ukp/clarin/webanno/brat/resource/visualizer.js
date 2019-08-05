@@ -1170,6 +1170,7 @@ var Visualizer = (function($, window, undefined) {
         // if (!lastFragment || (lastFragment.from != fragment.from || lastFragment.to != fragment.to)) {
         //   towerId++;
         // }
+        towerId++;
         fragment.towerId = towerId;
         lastFragment = fragment;
       }); // sortedFragments
@@ -1913,12 +1914,15 @@ var Visualizer = (function($, window, undefined) {
 
         var f1 = span.fragments[0];
         var f2 = span.fragments[span.fragments.length - 1];
-
-        var x1 = (f1.curly.from + f1.curly.to - f1.width) / 2 - Configuration.visual.margin.x;
+        // TODO:extension start
+        // var x1 = (f1.curly.from + f1.curly.to - f1.width) / 2 - Configuration.visual.margin.x;
+        var x1 = f1.curly.from;
         var i1 = f1.chunk.index;
 
-        var x2 = (f2.curly.from + f2.curly.to + f2.width) / 2 + Configuration.visual.margin.x;
+        // var x2 = (f2.curly.from + f2.curly.to + f2.width) / 2 + Configuration.visual.margin.x;
+        var x2 = f2.curly.to;
         var i2 = f2.chunk.index;
+        // TODO:extension end
 
         // Start from the ground level, going up floor by floor.
         // If no more floors, make a new available one.
