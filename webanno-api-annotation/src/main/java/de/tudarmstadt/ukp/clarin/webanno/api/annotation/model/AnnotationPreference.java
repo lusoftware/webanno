@@ -78,6 +78,26 @@ public class AnnotationPreference
     
     private String editor;
 
+    private String shape;
+
+    private Boolean approve;
+
+    public String getShape() {
+		return shape;
+	}
+
+	public void setShape(String shape) {
+		this.shape = shape;
+	}
+
+    public Boolean getApprove() {
+		return approve;
+	}
+
+	public void setApprove(Boolean approve) {
+		this.approve = approve;
+	}
+
     /**
      * working with preferred layers is deprecated, use hidden layers instead
      * @return

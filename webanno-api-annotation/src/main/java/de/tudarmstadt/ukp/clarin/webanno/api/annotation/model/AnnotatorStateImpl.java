@@ -164,7 +164,7 @@ public class AnnotatorStateImpl
     
     private List<Unit> visibleUnits;
 
-    public AnnotatorStateImpl(Mode aMode)
+	public AnnotatorStateImpl(Mode aMode)
     {
         mode = aMode;
     }

@@ -1714,7 +1714,13 @@ var Visualizer = (function($, window, undefined) {
         }); // tower
         $.each(tower, function(fragmentNo, fragment) {
           // fragment.width = maxWidth;
-          fragment.width = 20;
+          fragment.width = 10;
+          if (sourceData.args.focus && sourceData.args.focus[0][0][0] === fragment.span.id) {
+            fragment.shape = sourceData.shape;
+            if (sourceData.approve) {
+              fragment.width = 20;
+            }
+          }
         }); // tower
       }); // data.towers
     };
@@ -2238,16 +2244,29 @@ var Visualizer = (function($, window, undefined) {
             var xx = x - ww / 2;
             xx += boxTextMargin.x;
             var bx = xx - Configuration.visual.margin.x - boxTextMargin.x;
-            token.rect = svg.rect(fragment.group, bx, by, 20, bh, {
-              class: rectClass,
-              fill: bgColor,
-              stroke: borderColor,
-              rx: Configuration.visual.margin.x,
-              ry: Configuration.visual.margin.y,
-              "data-span-id": span.id,
-              "data-fragment-id": span.segmentedOffsetsMap[fragment.id],
-              strokeDashArray: span.attributeMerge.dashArray
-            });
+            if (fragment.shape === "circle") {
+              token.circle = svg.circle(fragment.group, bx + bw / 2, by - bh / 2, bw / 2, {
+                class: rectClass,
+                fill: bgColor,
+                stroke: borderColor,
+                rx: Configuration.visual.margin.x,
+                ry: Configuration.visual.margin.y,
+                "data-span-id": span.id,
+                "data-fragment-id": span.segmentedOffsetsMap[fragment.id],
+                strokeDashArray: span.attributeMerge.dashArray
+              });
+            } else {
+              token.rect = svg.rect(fragment.group, bx, by, bw, bh, {
+                class: rectClass,
+                fill: bgColor,
+                stroke: borderColor,
+                rx: Configuration.visual.margin.x,
+                ry: Configuration.visual.margin.y,
+                "data-span-id": span.id,
+                "data-fragment-id": span.segmentedOffsetsMap[fragment.id],
+                strokeDashArray: span.attributeMerge.dashArray
+              });
+            }
           });
           // TODO:extension end
 
@@ -2398,7 +2417,7 @@ var Visualizer = (function($, window, undefined) {
                   fragment.curly.to,
                   bottom - harf,
                   fragment.curly.to + offset,
-                  bottom - harf,
+                  bottom - harf
                 )
                 .curveC(
                   fragment.curly.to,
@@ -2412,7 +2431,7 @@ var Visualizer = (function($, window, undefined) {
                 class: "curly",
                 stroke: curlyColor
               }
-            // TODO:extension end
+              // TODO:extension end
             );
             chunkFrom = Math.min(fragment.curly.from, chunkFrom);
             chunkTo = Math.max(fragment.curly.to, chunkTo);

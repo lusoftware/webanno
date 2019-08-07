@@ -52,7 +52,11 @@ public class GetDocumentResponse
 
     private String text;
 
-    @JsonProperty("source_files")
+    private String shape;
+
+    private Boolean approve;
+
+	@JsonProperty("source_files")
     private List<String> sourceFiles = new ArrayList<>();
 
     private long ctime;
@@ -135,6 +139,22 @@ public class GetDocumentResponse
     {
         text = aText;
     }
+    
+    public String getSHape() {
+		return shape;
+	}
+
+	public void setShape(String shape) {
+		this.shape = shape;
+    }
+    
+    public Boolean getApprove() {
+		return approve;
+	}
+
+	public void setApprove(Boolean approve) {
+		this.approve = approve;
+	}
 
     public List<Comment> getComments()
     {

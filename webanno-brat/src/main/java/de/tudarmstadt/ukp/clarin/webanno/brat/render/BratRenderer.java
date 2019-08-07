@@ -119,7 +119,8 @@ public class BratRenderer
     {
         aResponse.setRtlMode(ScriptDirection.RTL.equals(aState.getScriptDirection()));
         aResponse.setFontZoom(aState.getPreferences().getFontZoom());
-
+        aResponse.setShape(aState.getPreferences().getShape());
+        aResponse.setApprove(aState.getPreferences().getApprove());
         // Render invisible baseline annotations (sentence, tokens)
         renderText(aCas, aResponse, aState);
         // The rows need to be rendered first because we use the row boundaries to split

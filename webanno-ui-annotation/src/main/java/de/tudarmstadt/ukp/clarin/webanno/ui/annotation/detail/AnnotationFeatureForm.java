@@ -30,6 +30,8 @@ import static org.apache.wicket.util.string.Strings.escapeMarkup;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -53,6 +55,7 @@ import org.apache.wicket.markup.html.form.CheckBox;
 import org.apache.wicket.markup.html.form.ChoiceRenderer;
 import org.apache.wicket.markup.html.form.DropDownChoice;
 import org.apache.wicket.markup.html.form.Form;
+import org.apache.wicket.markup.html.form.RadioChoice;
 import org.apache.wicket.markup.repeater.Item;
 import org.apache.wicket.markup.repeater.RefreshingView;
 import org.apache.wicket.markup.repeater.util.ModelIteratorAdapter;
@@ -121,12 +124,16 @@ public class AnnotationFeatureForm
     private @SpringBean AnnotationSchemaService annotationService;
     private @SpringBean UserPreferencesService userPreferencesService;
     private @SpringBean UserDao userDao;
+    
+    private HashMap<String,Boolean> approveMap = new HashMap<String,Boolean>();
 
     AnnotationFeatureForm(AnnotationDetailEditorPanel aEditorPanel, String id,
         IModel<AnnotatorState> aState)
-    {
+    {    	
         super(id, new CompoundPropertyModel<>(aState));
         editorPanel = aEditorPanel;
+        approveMap.put("yes", true);
+        approveMap.put("no", false);
         add(forwardAnnotationCheckBox = createForwardAnnotationCheckBox());
         add(createNoAnnotationWarningLabel());
         add(deleteAnnotationDialog = createDeleteDialog());
@@ -144,7 +151,6 @@ public class AnnotationFeatureForm
     {
         WebMarkupContainer container = new WebMarkupContainer("featureEditorsContainer");
         container.add(visibleWhen(() -> getModelObject().getSelection().getAnnotation().isSet()));
-
         // Add placeholder since wmc might start out invisible. Without the placeholder we
         // cannot make it visible in an AJAX call
         container.setOutputMarkupPlaceholderTag(true);
@@ -153,7 +159,8 @@ public class AnnotationFeatureForm
         container.add(featureEditorPanelContent = createFeatureEditorPanelContent());
         container.add(createSelectedTextLabel());
         container.add(selectedAnnotationLayer = createSelectedAnnotationLayerLabel());
-
+        container.add(createAnnotationClassSelector());
+        container.add(createAnnotationApproveCheck());
         return container;
     }
 
@@ -260,7 +267,50 @@ public class AnnotationFeatureForm
                 this::actionChangeDefaultLayer));
         return selector;
     }
+
+    IModel<String> dropdownModel = null;
+    IModel<String> checkModel = null;
+
+    private DropDownChoice<String> createAnnotationClassSelector()
+    {
+        List<String> classList = new ArrayList<String>();
+        classList.add("rect");
+        classList.add("circle");
+        dropdownModel = new Model<String>(classList.get(0));
+        DropDownChoice<String> selector = new DropDownChoice<String>("select",dropdownModel,classList);
+        selector.setOutputMarkupId(true);
+        selector.add(LambdaAjaxFormComponentUpdatingBehavior.onUpdate("change",
+                this::classSelector));
+        return selector;
+    }
+
+    private DropDownChoice<String> createAnnotationApproveCheck(){
+        List<String> approveList = new ArrayList<String>();
+        approveList.add("no");
+        approveList.add("yes");
+        checkModel = new Model<String>(approveList.get(0));
+        DropDownChoice<String> check = new DropDownChoice<String>("approve",checkModel,approveList);
+        check.setOutputMarkupId(true);
+        check.add(LambdaAjaxFormComponentUpdatingBehavior.onUpdate("change",
+                this::approveAnnotation));
+        return check;
+    }
     
+    private void classSelector(AjaxRequestTarget aTarget){
+        editorPanel.classSelector(aTarget,dropdownModel);
+    }
+
+    private void approveAnnotation(AjaxRequestTarget aTarget)
+    {
+        LOG.info("approveAnnotation");
+        try {
+			editorPanel.approveAnnotation(aTarget, approveMap.get((String)checkModel.getObject()));
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    }
+
     private void actionChangeDefaultLayer(AjaxRequestTarget aTarget)
     {
         AnnotatorState state = getModelObject();
@@ -894,6 +944,7 @@ public class AnnotationFeatureForm
             };
         }
     }
+
 
     protected List<AnnotationLayer> getAnnotationLayers()
     {
