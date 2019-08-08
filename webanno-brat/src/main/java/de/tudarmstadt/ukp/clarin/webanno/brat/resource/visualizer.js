@@ -2587,6 +2587,16 @@ var Visualizer = (function($, window, undefined) {
         } else {
           boxWidth = Math.max(textWidth, chunkTo) - Math.min(0, chunkFrom);
         }
+
+        // TODO:extension start
+
+        chunk.tokens.forEach(token=>{
+          var textWidth = token.curly.to - token.curly.from;
+          
+        });
+
+        // TODO:extension end
+
         // WEBANNO EXTENSION END
         // if (hasLeftArcs) {
         // TODO change this with smallestLeftArc
@@ -3882,7 +3892,8 @@ var Visualizer = (function($, window, undefined) {
           if (!sentenceText) {
             sentenceText = svg.createText();
           }
-*/
+*/       
+        // TODO:change
         if (!rowTextGroup || prevChunk.row != chunk.row) {
           if (rowTextGroup) {
             horizontalSpacer(svg, rowTextGroup, 0, prevChunk.row.textY, 1, {
