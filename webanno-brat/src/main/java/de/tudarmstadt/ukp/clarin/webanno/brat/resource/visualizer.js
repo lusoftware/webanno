@@ -2588,15 +2588,6 @@ var Visualizer = (function($, window, undefined) {
           boxWidth = Math.max(textWidth, chunkTo) - Math.min(0, chunkFrom);
         }
 
-        // TODO:extension start
-
-        chunk.tokens.forEach(token=>{
-          var textWidth = token.curly.to - token.curly.from;
-          
-        });
-
-        // TODO:extension end
-
         // WEBANNO EXTENSION END
         // if (hasLeftArcs) {
         // TODO change this with smallestLeftArc
