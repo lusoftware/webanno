@@ -1408,9 +1408,9 @@ var Visualizer = (function($, window, undefined) {
       return new Measurements(widths, bbox.height, bbox.y);
     };
 
-    var getTokenMeasurements = function(fragment, token, text) {
-      var firstChar = token.from - fragment.chunk.from;
-      var lastChar = token.to - fragment.chunk.from - 1;
+    var getTokenMeasurements = function(chunk, token, text) {
+      var firstChar = token.from - chunk.from;
+      var lastChar = token.to - chunk.from - 1;
       if (firstChar < text.getNumberOfChars()) {
         startPos = text.getStartPositionOfChar(firstChar).x;
       } else {
@@ -1439,222 +1439,225 @@ var Visualizer = (function($, window, undefined) {
         // here we also need all the spans that are contained in
         // chunks with this text, because we need to know the position
         // of the span text within the respective chunk text
-        chunkText.push.apply(chunkText, chunk.fragments);
+        // chunkText.push.apply(chunkText, chunk.fragments);
+        chunkText.push(chunk);
         // and also the markedText boundaries
         chunkText.push.apply(chunkText, chunk.markedTextStart);
         chunkText.push.apply(chunkText, chunk.markedTextEnd);
       });
-      var textSizes = getTextMeasurements(chunkTexts, undefined, function(fragment, text) {
-        fragment.tokens.forEach(token => {
-          getTokenMeasurements(fragment, token, text);
+      var textSizes = getTextMeasurements(chunkTexts, undefined, function(chunk, text) {
+        chunk.tokens.forEach(token => {
+          getTokenMeasurements(chunk, token, text);
         });
-        if (fragment instanceof Fragment) {
-          // it's a fragment!
-          // measure the fragment text position in pixels
-          var firstChar = fragment.from - fragment.chunk.from;
-          if (firstChar < 0) {
-            firstChar = 0;
-            dispatcher.post("messages", [
-              [
+        chunk.fragments.forEach(fragment => {
+          if (fragment instanceof Fragment) {
+            // it's a fragment!
+            // measure the fragment text position in pixels
+            var firstChar = fragment.from - fragment.chunk.from;
+            if (firstChar < 0) {
+              firstChar = 0;
+              dispatcher.post("messages", [
                 [
-                  "<strong>WARNING</strong>" +
-                    "<br/> " +
-                    "The fragment [" +
-                    fragment.from +
-                    ", " +
-                    fragment.to +
-                    "] (" +
-                    fragment.text +
-                    ") is not " +
-                    "contained in its designated chunk [" +
-                    fragment.chunk.from +
-                    ", " +
-                    fragment.chunk.to +
-                    "] most likely " +
-                    "due to the fragment starting or ending with a space, please " +
-                    "verify the sanity of your data since we are unable to " +
-                    "visualise this fragment correctly and will drop leading " +
-                    "space characters",
-                  "warning",
-                  15
+                  [
+                    "<strong>WARNING</strong>" +
+                      "<br/> " +
+                      "The fragment [" +
+                      fragment.from +
+                      ", " +
+                      fragment.to +
+                      "] (" +
+                      fragment.text +
+                      ") is not " +
+                      "contained in its designated chunk [" +
+                      fragment.chunk.from +
+                      ", " +
+                      fragment.chunk.to +
+                      "] most likely " +
+                      "due to the fragment starting or ending with a space, please " +
+                      "verify the sanity of your data since we are unable to " +
+                      "visualise this fragment correctly and will drop leading " +
+                      "space characters",
+                    "warning",
+                    15
+                  ]
                 ]
-              ]
-            ]);
-          }
-          var lastChar = fragment.to - fragment.chunk.from - 1;
+              ]);
+            }
+            var lastChar = fragment.to - fragment.chunk.from - 1;
 
-          // Adjust for XML whitespace (#832, #1009)
-          // TODO:extension start
-          // var textUpToFirstChar = fragment.chunk.text.substring(0, firstChar);
-          // var textUpToLastChar = fragment.chunk.text.substring(0, lastChar);
-          // var textUpToFirstCharUnspaced = textUpToFirstChar.replace(/\s\s+/g, " ");
-          // var textUpToLastCharUnspaced = textUpToLastChar.replace(/\s\s+/g, " ");
-          // firstChar -= textUpToFirstChar.length - textUpToFirstCharUnspaced.length;
-          // lastChar -= textUpToLastChar.length - textUpToLastCharUnspaced.length;
-          // TODO:extension end
+            // Adjust for XML whitespace (#832, #1009)
+            // TODO:extension start
+            // var textUpToFirstChar = fragment.chunk.text.substring(0, firstChar);
+            // var textUpToLastChar = fragment.chunk.text.substring(0, lastChar);
+            // var textUpToFirstCharUnspaced = textUpToFirstChar.replace(/\s\s+/g, " ");
+            // var textUpToLastCharUnspaced = textUpToLastChar.replace(/\s\s+/g, " ");
+            // firstChar -= textUpToFirstChar.length - textUpToFirstCharUnspaced.length;
+            // lastChar -= textUpToLastChar.length - textUpToLastCharUnspaced.length;
+            // TODO:extension end
 
-          // BEGIN WEBANNO EXTENSION - RTL support
-          // - #265 rendering with quotation marks
-          // - #278 Sub-token annotation of LTR text in RTL mode
-          if (rtlmode) {
-            // This rendering is much slower than the "old" version that brat uses, but it
-            // is more reliable in RTL mode.
-            var charDirection = null;
-            var charAttrs = null;
-            var corrFactor = 1;
+            // BEGIN WEBANNO EXTENSION - RTL support
+            // - #265 rendering with quotation marks
+            // - #278 Sub-token annotation of LTR text in RTL mode
+            if (rtlmode) {
+              // This rendering is much slower than the "old" version that brat uses, but it
+              // is more reliable in RTL mode.
+              var charDirection = null;
+              var charAttrs = null;
+              var corrFactor = 1;
 
-            if ("rtlsizes" in fragment.chunk) {
-              // Use cached metrics
-              charDirection = fragment.chunk.rtlsizes.charDirection;
-              charAttrs = fragment.chunk.rtlsizes.charAttrs;
-              corrFactor = fragment.chunk.rtlsizes.corrFactor;
+              if ("rtlsizes" in fragment.chunk) {
+                // Use cached metrics
+                charDirection = fragment.chunk.rtlsizes.charDirection;
+                charAttrs = fragment.chunk.rtlsizes.charAttrs;
+                corrFactor = fragment.chunk.rtlsizes.corrFactor;
+              } else {
+                // Calculate metrics
+                var start = new Date();
+
+                charDirection = [];
+                charAttrs = [];
+
+                // WebAnno #307 Cannot use fragment.chunk.text.length here because invisible
+                // characters do not count. Using text.getNumberOfChars() instead.
+                //var step1Start = new Date();
+                for (var idx = 0; idx < text.getNumberOfChars(); idx++) {
+                  var cw = text.getEndPositionOfChar(idx).x - text.getStartPositionOfChar(idx).x;
+                  var dir = isRTL(text.textContent.charCodeAt(idx)) ? "rtl" : "ltr";
+                  charAttrs.push({
+                    order: idx,
+                    width: Math.abs(cw),
+                    direction: dir
+                  });
+                  charDirection.push(dir);
+                  //		            	  console.log("char " +  idx + " [" + text.textContent[idx] + "] " +
+                  //		            	  		"begin:" + text.getStartPositionOfChar(idx).x +
+                  //		            	  		" end:" + text.getEndPositionOfChar(idx).x +
+                  //		            	  		" width:" + Math.abs(cw) +
+                  //		            	  		" dir:" + charDirection[charDirection.length-1]);
+                }
+                //console.log("Collected widths in " + (new Date() - step1Start));
+
+                // Re-order widths if necessary
+                //var step2Start = new Date();
+                if (charAttrs.length > 1) {
+                  var idx = 0;
+                  var blockBegin = idx;
+                  var blockEnd = idx;
+
+                  // Figure out next block
+                  while (blockEnd < charAttrs.length) {
+                    while (charDirection[blockBegin] == charDirection[blockEnd]) {
+                      blockEnd++;
+                    }
+
+                    if (charDirection[blockBegin] == (rtlmode ? "ltr" : "rtl")) {
+                      charAttrs = charAttrs
+                        .slice(0, blockBegin)
+                        .concat(charAttrs.slice(blockBegin, blockEnd).reverse())
+                        .concat(charAttrs.slice(blockEnd));
+                    }
+
+                    blockBegin = blockEnd;
+                  }
+                }
+                //	          console.log("order: " + charOrder);
+                //console.log("Established character order in " + (new Date() - step2Start));
+
+                //var step3Start = new Date();
+                // The actual character width on screen is not necessarily the width that can be
+                // obtained by subtracting start from end position. In particular Arabic connects
+                // characters quite a bit such that the width on screen may be less. Here we
+                // try to compensate for this using a correction factor.
+                var widthsSum = 0;
+                for (var idx = 0; idx < charAttrs.length; idx++) {
+                  widthsSum += charAttrs[idx].width;
+                }
+                corrFactor = text.getComputedTextLength() / widthsSum;
+                //console.log("Final calculations in " + (new Date() - step3Start));
+
+                //	          	  console.log("width sums: " + widthsSum);
+                //	          	  console.log("computed length: " + text.getComputedTextLength());
+                //	          	  console.log("corrFactor: " + corrFactor);
+
+                fragment.chunk.rtlsizes = {
+                  charDirection: charDirection,
+                  charAttrs: charAttrs,
+                  corrFactor: corrFactor
+                };
+
+                //console.log("Completed calculating static RTL metrics in " + (new Date() -
+                //		  start) + " for " + text.getNumberOfChars() + " characters.");
+              }
+
+              //startPos = Math.min(0, Math.min(text.getStartPositionOfChar(charOrder[0]).x, text.getEndPositionOfChar(charOrder[0]).x));
+              var startPos = 0;
+              //	           	  console.log("startPos[initial]: " + startPos);
+              for (var i = 0; charAttrs[i].order != firstChar && i < charAttrs.length; i++) {
+                startPos += charAttrs[i].width;
+                //	            	  console.log("startPos["+i+"]  "+text.textContent[charOrder[i]]+" width "+charWidths[i]+" : " + startPos);
+              }
+              if (charDirection[i] == (rtlmode ? "ltr" : "rtl")) {
+                startPos += charAttrs[i].width;
+                //	            	  console.log("startPos["+i+"]  "+text.textContent[charOrder[i]]+" width "+charWidths[i]+" : " + startPos);
+              }
+              startPos = startPos * corrFactor;
+              //	        	  console.log("startPos: " + startPos);
+
+              //endPos = Math.min(0, Math.min(text.getStartPositionOfChar(charOrder[0]).x, text.getEndPositionOfChar(charOrder[0]).x));
+              var endPos = 0;
+              //	           	  console.log("endPos[initial]: " + endPos);
+              for (var i = 0; charAttrs[i].order != lastChar && i < charAttrs.length; i++) {
+                endPos += charAttrs[i].width;
+                //	            	  console.log("endPos["+i+"]  "+text.textContent[charOrder[i]]+" width "+charWidths[i]+" : " + endPos);
+              }
+              if (charDirection[i] == (rtlmode ? "rtl" : "ltr")) {
+                //	            	  console.log("endPos["+i+"]  "+text.textContent[charOrder[i]]+" width "+charWidths[i]+" : " + endPos);
+                endPos += charAttrs[i].width;
+              }
+              endPos = endPos * corrFactor;
+              //	        	  console.log("endPos: " + endPos);
             } else {
-              // Calculate metrics
-              var start = new Date();
-
-              charDirection = [];
-              charAttrs = [];
-
+              // Using the old faster method in LTR mode. YES, this means that subtoken
+              // annotations of RTL tokens in LTR mode will render incorrectly. If somebody
+              // needs that, we should do a smarter selection of the rendering mode.
+              // This is the old measurement code which doesn't work properly because browsers
+              // treat the x coordinate very differently. Our width-based measurement is more
+              // reliable.
               // WebAnno #307 Cannot use fragment.chunk.text.length here because invisible
               // characters do not count. Using text.getNumberOfChars() instead.
-              //var step1Start = new Date();
-              for (var idx = 0; idx < text.getNumberOfChars(); idx++) {
-                var cw = text.getEndPositionOfChar(idx).x - text.getStartPositionOfChar(idx).x;
-                var dir = isRTL(text.textContent.charCodeAt(idx)) ? "rtl" : "ltr";
-                charAttrs.push({
-                  order: idx,
-                  width: Math.abs(cw),
-                  direction: dir
-                });
-                charDirection.push(dir);
-                //		            	  console.log("char " +  idx + " [" + text.textContent[idx] + "] " +
-                //		            	  		"begin:" + text.getStartPositionOfChar(idx).x +
-                //		            	  		" end:" + text.getEndPositionOfChar(idx).x +
-                //		            	  		" width:" + Math.abs(cw) +
-                //		            	  		" dir:" + charDirection[charDirection.length-1]);
+              if (firstChar < text.getNumberOfChars()) {
+                startPos = text.getStartPositionOfChar(firstChar).x;
+              } else {
+                startPos = text.getComputedTextLength();
               }
-              //console.log("Collected widths in " + (new Date() - step1Start));
+              endPos = lastChar < firstChar ? startPos : text.getEndPositionOfChar(lastChar).x;
+            }
+            // END WEBANNO EXTENSION - RTL support - #265 rendering with quotation marks
 
-              // Re-order widths if necessary
-              //var step2Start = new Date();
-              if (charAttrs.length > 1) {
-                var idx = 0;
-                var blockBegin = idx;
-                var blockEnd = idx;
-
-                // Figure out next block
-                while (blockEnd < charAttrs.length) {
-                  while (charDirection[blockBegin] == charDirection[blockEnd]) {
-                    blockEnd++;
-                  }
-
-                  if (charDirection[blockBegin] == (rtlmode ? "ltr" : "rtl")) {
-                    charAttrs = charAttrs
-                      .slice(0, blockBegin)
-                      .concat(charAttrs.slice(blockBegin, blockEnd).reverse())
-                      .concat(charAttrs.slice(blockEnd));
-                  }
-
-                  blockBegin = blockEnd;
-                }
-              }
-              //	          console.log("order: " + charOrder);
-              //console.log("Established character order in " + (new Date() - step2Start));
-
-              //var step3Start = new Date();
-              // The actual character width on screen is not necessarily the width that can be
-              // obtained by subtracting start from end position. In particular Arabic connects
-              // characters quite a bit such that the width on screen may be less. Here we
-              // try to compensate for this using a correction factor.
-              var widthsSum = 0;
-              for (var idx = 0; idx < charAttrs.length; idx++) {
-                widthsSum += charAttrs[idx].width;
-              }
-              corrFactor = text.getComputedTextLength() / widthsSum;
-              //console.log("Final calculations in " + (new Date() - step3Start));
-
-              //	          	  console.log("width sums: " + widthsSum);
-              //	          	  console.log("computed length: " + text.getComputedTextLength());
-              //	          	  console.log("corrFactor: " + corrFactor);
-
-              fragment.chunk.rtlsizes = {
-                charDirection: charDirection,
-                charAttrs: charAttrs,
-                corrFactor: corrFactor
-              };
-
-              //console.log("Completed calculating static RTL metrics in " + (new Date() -
-              //		  start) + " for " + text.getNumberOfChars() + " characters.");
+            // WEBANNO EXTENSION BEGIN - RTL support - Curlies coordinates
+            // In RTL mode, positions are negative (left to right)
+            if (rtlmode) {
+              startPos = -startPos;
+              endPos = -endPos;
             }
 
-            //startPos = Math.min(0, Math.min(text.getStartPositionOfChar(charOrder[0]).x, text.getEndPositionOfChar(charOrder[0]).x));
-            var startPos = 0;
-            //	           	  console.log("startPos[initial]: " + startPos);
-            for (var i = 0; charAttrs[i].order != firstChar && i < charAttrs.length; i++) {
-              startPos += charAttrs[i].width;
-              //	            	  console.log("startPos["+i+"]  "+text.textContent[charOrder[i]]+" width "+charWidths[i]+" : " + startPos);
-            }
-            if (charDirection[i] == (rtlmode ? "ltr" : "rtl")) {
-              startPos += charAttrs[i].width;
-              //	            	  console.log("startPos["+i+"]  "+text.textContent[charOrder[i]]+" width "+charWidths[i]+" : " + startPos);
-            }
-            startPos = startPos * corrFactor;
-            //	        	  console.log("startPos: " + startPos);
-
-            //endPos = Math.min(0, Math.min(text.getStartPositionOfChar(charOrder[0]).x, text.getEndPositionOfChar(charOrder[0]).x));
-            var endPos = 0;
-            //	           	  console.log("endPos[initial]: " + endPos);
-            for (var i = 0; charAttrs[i].order != lastChar && i < charAttrs.length; i++) {
-              endPos += charAttrs[i].width;
-              //	            	  console.log("endPos["+i+"]  "+text.textContent[charOrder[i]]+" width "+charWidths[i]+" : " + endPos);
-            }
-            if (charDirection[i] == (rtlmode ? "rtl" : "ltr")) {
-              //	            	  console.log("endPos["+i+"]  "+text.textContent[charOrder[i]]+" width "+charWidths[i]+" : " + endPos);
-              endPos += charAttrs[i].width;
-            }
-            endPos = endPos * corrFactor;
-            //	        	  console.log("endPos: " + endPos);
+            // Make sure that startpos and endpos are properly ordered on the X axis
+            fragment.curly = {
+              from: Math.min(startPos, endPos),
+              to: Math.max(startPos, endPos)
+            };
+            // WEBANNO EXTENSION END
           } else {
-            // Using the old faster method in LTR mode. YES, this means that subtoken
-            // annotations of RTL tokens in LTR mode will render incorrectly. If somebody
-            // needs that, we should do a smarter selection of the rendering mode.
-            // This is the old measurement code which doesn't work properly because browsers
-            // treat the x coordinate very differently. Our width-based measurement is more
-            // reliable.
-            // WebAnno #307 Cannot use fragment.chunk.text.length here because invisible
-            // characters do not count. Using text.getNumberOfChars() instead.
-            if (firstChar < text.getNumberOfChars()) {
-              startPos = text.getStartPositionOfChar(firstChar).x;
+            // it's markedText [id, start?, char#, offset]
+            if (fragment[2] < 0) fragment[2] = 0;
+            if (!fragment[2]) {
+              // start
+              fragment[3] = text.getStartPositionOfChar(fragment[2]).x;
             } else {
-              startPos = text.getComputedTextLength();
+              fragment[3] = text.getEndPositionOfChar(fragment[2] - 1).x + 1;
             }
-            endPos = lastChar < firstChar ? startPos : text.getEndPositionOfChar(lastChar).x;
           }
-          // END WEBANNO EXTENSION - RTL support - #265 rendering with quotation marks
-
-          // WEBANNO EXTENSION BEGIN - RTL support - Curlies coordinates
-          // In RTL mode, positions are negative (left to right)
-          if (rtlmode) {
-            startPos = -startPos;
-            endPos = -endPos;
-          }
-
-          // Make sure that startpos and endpos are properly ordered on the X axis
-          fragment.curly = {
-            from: Math.min(startPos, endPos),
-            to: Math.max(startPos, endPos)
-          };
-          // WEBANNO EXTENSION END
-        } else {
-          // it's markedText [id, start?, char#, offset]
-          if (fragment[2] < 0) fragment[2] = 0;
-          if (!fragment[2]) {
-            // start
-            fragment[3] = text.getStartPositionOfChar(fragment[2]).x;
-          } else {
-            fragment[3] = text.getEndPositionOfChar(fragment[2] - 1).x + 1;
-          }
-        }
+        });
       });
 
       // get the fragment annotation text sizes
@@ -2588,15 +2591,6 @@ var Visualizer = (function($, window, undefined) {
           boxWidth = Math.max(textWidth, chunkTo) - Math.min(0, chunkFrom);
         }
 
-        // TODO:extension start
-
-        chunk.tokens.forEach(token=>{
-          var textWidth = token.curly.to - token.curly.from;
-          
-        });
-
-        // TODO:extension end
-
         // WEBANNO EXTENSION END
         // if (hasLeftArcs) {
         // TODO change this with smallestLeftArc
@@ -2616,15 +2610,17 @@ var Visualizer = (function($, window, undefined) {
         var leftBorderForArcs = hasLeftArcs ? arcHorizontalSpacing : hasInternalArcs ? arcSlant : 0;
         // WEBANNO EXTENSION END
 
-        var lastX = currentX;
-        var lastRow = row;
-
-        // Is there a sentence break at the current chunk (i.e. it is the first chunk in a new
-        // sentence) - if yes and the current sentence is not the same as the sentence to which
-        // the chunk belongs, then fill in additional rows
-        if (chunk.sentence) {
-          // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
-          /*
+        chunk.tokens.forEach(token => {
+          row.tokens = [];
+          var lastX = currentX;
+          var lastRow = row;
+          var textWidth = token.curly.to - token.curly.from;
+          // Is there a sentence break at the current chunk (i.e. it is the first chunk in a new
+          // sentence) - if yes and the current sentence is not the same as the sentence to which
+          // the chunk belongs, then fill in additional rows
+          if (chunk.sentence) {
+            // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
+            /*
             while (sentenceNumber < chunk.sentence) {
               sentenceNumber++;
               row.arcs = svg.group(row.group, { 'class': 'arcs' });
@@ -2636,43 +2632,43 @@ var Visualizer = (function($, window, undefined) {
             }
             sentenceToggle = 1 - sentenceToggle;
 */
-          while (sentenceNumber < chunk.sentence - 1) {
-            sentenceNumber++;
-            row.arcs = svg.group(row.group, { class: "arcs" });
-            rows.push(row);
+            while (sentenceNumber < chunk.sentence - 1) {
+              sentenceNumber++;
+              row.arcs = svg.group(row.group, { class: "arcs" });
+              rows.push(row);
 
-            row = new Row(svg);
-            row.sentence = sentenceNumber;
-            sentenceToggle = 1 - sentenceToggle;
-            row.backgroundIndex = sentenceToggle;
-            row.index = ++rowIndex;
+              row = new Row(svg);
+              row.sentence = sentenceNumber;
+              sentenceToggle = 1 - sentenceToggle;
+              row.backgroundIndex = sentenceToggle;
+              row.index = ++rowIndex;
+            }
+            // Not changing row background color here anymore - we do this later now when the next
+            // row is added
+            // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
           }
-          // Not changing row background color here anymore - we do this later now when the next
-          // row is added
-          // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
-        }
 
-        // WEBANNO EXTENSION BEGIN - RTL support - soft-wrap long sentences
-        /*
+          // WEBANNO EXTENSION BEGIN - RTL support - soft-wrap long sentences
+          /*
           if (chunk.sentence ||
               currentX + boxWidth + rightBorderForArcs >= canvasWidth - 2 * Configuration.visual.margin.x) {
 */
-        var chunkDoesNotFit = false;
-        if (rtlmode) {
-          chunkDoesNotFit = currentX - boxWidth - leftBorderForArcs <= 2 * Configuration.visual.margin.x;
-        } else {
-          chunkDoesNotFit = currentX + boxWidth + rightBorderForArcs >= canvasWidth - 2 * Configuration.visual.margin.x;
-        }
+          var chunkDoesNotFit = false;
+          if (rtlmode) {
+            chunkDoesNotFit = currentX - textWidth - leftBorderForArcs <= 2 * Configuration.visual.margin.x;
+          } else {
+            chunkDoesNotFit =
+              currentX + textWidth + rightBorderForArcs >= canvasWidth - 2 * Configuration.visual.margin.x;
+          }
+          // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
+          if (chunk.sentence > sourceData.sentence_number_offset || chunkDoesNotFit) {
+            // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
+            // WEBANNO EXTENSION END
 
-        // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
-        if (chunk.sentence > sourceData.sentence_number_offset || chunkDoesNotFit) {
-          // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
-          // WEBANNO EXTENSION END
-
-          // the chunk does not fit
-          row.arcs = svg.group(row.group, { class: "arcs" });
-          // WEBANNO EXTENSION BEGIN - RTL support - [currentX] reset after soft-wrap
-          /*
+            // the chunk does not fit
+            row.arcs = svg.group(row.group, { class: "arcs" });
+            // WEBANNO EXTENSION BEGIN - RTL support - [currentX] reset after soft-wrap
+            /*
             // TODO: related to issue #571
             // replace arcHorizontalSpacing with a calculated value
             currentX = Configuration.visual.margin.x + sentNumMargin + rowPadding +
@@ -2680,185 +2676,192 @@ var Visualizer = (function($, window, undefined) {
                 spaceWidth;
 */
 
-          // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
-          var indent = 0;
-          if (chunk.lastSpace) {
-            var spaceLen = chunk.lastSpace.length || 0;
-            var spacePos;
-            if (chunk.sentence) {
-              // If this is line-initial spacing, fetch the sentence to which the chunk belongs
-              // so we can determine where it begins
-              var sentFrom = sourceData.sentence_offsets[chunk.sentence - sourceData.sentence_number_offset][0];
-              spacePos = spaceLen - (chunk.from - sentFrom);
-            } else {
-              spacePos = 0;
+            // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
+            var indent = 0;
+            if (chunk.lastSpace) {
+              var spaceLen = chunk.lastSpace.length || 0;
+              var spacePos;
+              if (chunk.sentence) {
+                // If this is line-initial spacing, fetch the sentence to which the chunk belongs
+                // so we can determine where it begins
+                var sentFrom = sourceData.sentence_offsets[chunk.sentence - sourceData.sentence_number_offset][0];
+                spacePos = spaceLen - (chunk.from - sentFrom);
+              } else {
+                spacePos = 0;
+              }
+              for (var i = spacePos; i < spaceLen; i++) {
+                indent += spaceWidths[chunk.lastSpace[i]] * (fontZoom / 100.0) || 0;
+              }
             }
-            for (var i = spacePos; i < spaceLen; i++) {
-              indent += spaceWidths[chunk.lastSpace[i]] * (fontZoom / 100.0) || 0;
-            }
-          }
 
-          if (rtlmode) {
-            currentX =
-              canvasWidth -
-              (Configuration.visual.margin.x +
-              sentNumMargin +
-              rowPadding +
-              (hasRightArcs ? arcHorizontalSpacing : hasInternalArcs ? arcSlant : 0) /* +
+            if (rtlmode) {
+              currentX =
+                canvasWidth -
+                (Configuration.visual.margin.x +
+                sentNumMargin +
+                rowPadding +
+                (hasRightArcs ? arcHorizontalSpacing : hasInternalArcs ? arcSlant : 0) /* +
 	              spaceWidth*/ -
-                indent);
-          } else {
-            currentX =
-              Configuration.visual.margin.x +
-              sentNumMargin +
-              rowPadding +
-              (hasLeftArcs ? arcHorizontalSpacing : hasInternalArcs ? arcSlant : 0) /*+
+                  indent);
+            } else {
+              currentX =
+                Configuration.visual.margin.x +
+                sentNumMargin +
+                rowPadding +
+                (hasLeftArcs ? arcHorizontalSpacing : hasInternalArcs ? arcSlant : 0) /*+
                 spaceWidth*/ +
-              indent;
-          }
-          // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
-          // WEBANNO EXTENSION END - RTL support - [currentX] reset after soft-wrap
-          if (hasLeftArcs) {
-            var adjustedCurTextWidth = sizes.texts.widths[chunk.text] + arcHorizontalSpacing;
-            if (adjustedCurTextWidth > maxTextWidth) {
-              maxTextWidth = adjustedCurTextWidth;
+                indent;
             }
-          }
-          if (spacingRowBreak > 0) {
-            // WEBANNO EXTENSION BEGIN - RTL support - [currentX] adjustment for spacingRowBreak (for arcs)
-            /*
+            // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
+            // WEBANNO EXTENSION END - RTL support - [currentX] reset after soft-wrap
+            if (hasLeftArcs) {
+              var adjustedCurTextWidth = sizes.texts.widths[chunk.text] + arcHorizontalSpacing;
+              if (adjustedCurTextWidth > maxTextWidth) {
+                maxTextWidth = adjustedCurTextWidth;
+              }
+            }
+            if (spacingRowBreak > 0) {
+              // WEBANNO EXTENSION BEGIN - RTL support - [currentX] adjustment for spacingRowBreak (for arcs)
+              /*
               currentX += spacingRowBreak;
 */
-            currentX += rtlmode ? -spacingRowBreak : spacingRowBreak;
-            // WEBANNO EXTENSION END
-            spacing = 0; // do not center intervening elements
+              currentX += rtlmode ? -spacingRowBreak : spacingRowBreak;
+              // WEBANNO EXTENSION END
+              spacing = 0; // do not center intervening elements
+            }
+
+            // new row
+            rows.push(row);
+
+            svg.remove(chunk.group);
+            row = new Row(svg);
+            row.tokens = [];
+            // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
+            // Change row background color if a new sentence is starting
+            if (chunk.sentence) {
+              sentenceToggle = 1 - sentenceToggle;
+            }
+            // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
+            row.backgroundIndex = sentenceToggle;
+            row.index = ++rowIndex;
+            svg.add(row.group, chunk.group);
+            chunk.group = row.group.lastElementChild;
+            $(chunk.group)
+              .children("g[class='span']")
+              .each(function(index, element) {
+                chunk.fragments[index].group = element;
+              });
+            // TODO:extension start
+            // $(chunk.group)
+            //   .find("rect[data-span-id]")
+            //   .each(function(index, element) {
+            //     chunk.fragments[index].rect = element;
+            //   });
+            // TODO:extension end
           }
 
-          // new row
-          rows.push(row);
-
-          svg.remove(chunk.group);
-          row = new Row(svg);
-          // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
-          // Change row background color if a new sentence is starting
-          if (chunk.sentence) {
-            sentenceToggle = 1 - sentenceToggle;
-          }
-          // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
-          row.backgroundIndex = sentenceToggle;
-          row.index = ++rowIndex;
-          svg.add(row.group, chunk.group);
-          chunk.group = row.group.lastElementChild;
-          $(chunk.group)
-            .children("g[class='span']")
-            .each(function(index, element) {
-              chunk.fragments[index].group = element;
-            });
-          // TODO:extension start
-          // $(chunk.group)
-          //   .find("rect[data-span-id]")
-          //   .each(function(index, element) {
-          //     chunk.fragments[index].rect = element;
-          //   });
           // TODO:extension end
-        }
-
-        // break the text highlights when the row breaks
-        if (row.index !== lastRow.index) {
-          $.each(openTextHighlights, function(textId, textDesc) {
-            if (textDesc[3] != lastX) {
-              // WEBANNO EXTENSION BEGIN - RTL support - breaking highlights (?)
-              /*
+          // break the text highlights when the row breaks
+          if (row.index !== lastRow.index) {
+            $.each(openTextHighlights, function(textId, textDesc) {
+              if (textDesc[3] != lastX) {
+                // WEBANNO EXTENSION BEGIN - RTL support - breaking highlights (?)
+                /*
                 var newDesc = [lastRow, textDesc[3], lastX + boxX, textDesc[4]];
 */
-              var newDesc;
-              if (rtlmode) {
-                newDesc = [lastRow, textDesc[3], lastX - boxX, textDesc[4]];
-              } else {
-                newDesc = [lastRow, textDesc[3], lastX + boxX, textDesc[4]];
+                var newDesc;
+                if (rtlmode) {
+                  newDesc = [lastRow, textDesc[3], lastX - boxX, textDesc[4]];
+                } else {
+                  newDesc = [lastRow, textDesc[3], lastX + boxX, textDesc[4]];
+                }
+                // WEBANNO EXTENSION END
+                textMarkedRows.push(newDesc);
               }
-              // WEBANNO EXTENSION END
-              textMarkedRows.push(newDesc);
-            }
-            textDesc[3] = currentX;
+              textDesc[3] = currentX;
+            });
+          }
+
+          // open text highlights
+          $.each(chunk.markedTextStart, function(textNo, textDesc) {
+            // WEBANNO EXTENSION BEGIN - RTL support - breaking highlights (?)
+            /*
+            textDesc[3] += currentX + boxX;
+*/
+            textDesc[3] += currentX + (rtlmode ? -boxX : boxX);
+            // WEBANNO EXTENSION END
+            openTextHighlights[textDesc[0]] = textDesc;
           });
-        }
 
-        // open text highlights
-        $.each(chunk.markedTextStart, function(textNo, textDesc) {
-          // WEBANNO EXTENSION BEGIN - RTL support - breaking highlights (?)
-          /*
+          // close text highlights
+          $.each(chunk.markedTextEnd, function(textNo, textDesc) {
+            // WEBANNO EXTENSION BEGIN - RTL support - breaking highlights (?)
+            /*
             textDesc[3] += currentX + boxX;
 */
-          textDesc[3] += currentX + (rtlmode ? -boxX : boxX);
-          // WEBANNO EXTENSION END
-          openTextHighlights[textDesc[0]] = textDesc;
-        });
+            textDesc[3] += currentX + (rtlmode ? -boxX : boxX);
+            // WEBANNO EXTENSION END
+            var startDesc = openTextHighlights[textDesc[0]];
+            delete openTextHighlights[textDesc[0]];
+            markedRow = [row, startDesc[3], textDesc[3], startDesc[4]];
+            textMarkedRows.push(markedRow);
+          });
 
-        // close text highlights
-        $.each(chunk.markedTextEnd, function(textNo, textDesc) {
-          // WEBANNO EXTENSION BEGIN - RTL support - breaking highlights (?)
+          // XXX check this - is it used? should it be lastRow?
+          if (hasAnnotations) row.hasAnnotations = true;
+
+          // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
           /*
-            textDesc[3] += currentX + boxX;
-*/
-          textDesc[3] += currentX + (rtlmode ? -boxX : boxX);
-          // WEBANNO EXTENSION END
-          var startDesc = openTextHighlights[textDesc[0]];
-          delete openTextHighlights[textDesc[0]];
-          markedRow = [row, startDesc[3], textDesc[3], startDesc[4]];
-          textMarkedRows.push(markedRow);
-        });
-
-        // XXX check this - is it used? should it be lastRow?
-        if (hasAnnotations) row.hasAnnotations = true;
-
-        // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
-        /*
           if (chunk.sentence) {
 */
 
-        if (chunk.sentence > sourceData.sentence_number_offset) {
-          // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
-          row.sentence = ++sentenceNumber;
-        }
+          if (chunk.sentence > sourceData.sentence_number_offset) {
+            // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
+            row.sentence = ++sentenceNumber;
+          }
 
-        if (spacing > 0) {
-          // if we added a gap, center the intervening elements
-          spacing /= 2;
-          var firstChunkInRow = row.chunks[row.chunks.length - 1];
-          if (firstChunkInRow === undefined) {
-            console.log("warning: firstChunkInRow undefined, chunk:", chunk);
-          } else {
-            // valid firstChunkInRow
-            if (spacingChunkId < firstChunkInRow.index) {
-              spacingChunkId = firstChunkInRow.index + 1;
-            }
-            for (var chunkIndex = spacingChunkId; chunkIndex < chunk.index; chunkIndex++) {
-              var movedChunk = data.chunks[chunkIndex];
-              translate(movedChunk, movedChunk.translation.x + spacing, 0);
-              movedChunk.textX += spacing;
+          if (spacing > 0) {
+            // if we added a gap, center the intervening elements
+            spacing /= 2;
+            var firstChunkInRow = row.chunks[row.chunks.length - 1];
+            if (firstChunkInRow === undefined) {
+              console.log("warning: firstChunkInRow undefined, chunk:", chunk);
+            } else {
+              // valid firstChunkInRow
+              if (spacingChunkId < firstChunkInRow.index) {
+                spacingChunkId = firstChunkInRow.index + 1;
+              }
+              for (var chunkIndex = spacingChunkId; chunkIndex < chunk.index; chunkIndex++) {
+                var movedChunk = data.chunks[chunkIndex];
+                translate(movedChunk, movedChunk.translation.x + spacing, 0);
+                movedChunk.textX += spacing;
+              }
             }
           }
-        }
 
-        row.chunks.push(chunk);
-        chunk.row = row;
+          row.tokens.push(token);
+          token.row = row;
+          row.chunks.push(chunk);
+          chunk.row = row;
 
-        // WEBANNO EXTENSION BEGIN - RTL support - chunk - translate position (based on currentX/boxX)
-        /*
+          // WEBANNO EXTENSION BEGIN - RTL support - chunk - translate position (based on currentX/boxX)
+          /*
           translate(chunk, currentX + boxX, 0);
           chunk.textX = currentX + boxX;
 */
-        translate(chunk, currentX + (rtlmode ? -boxX : boxX), 0);
-        chunk.textX = currentX + (rtlmode ? -boxX : boxX);
-        // WEBANNO EXTENSION END
+          translate(chunk, currentX + (rtlmode ? -boxX : boxX), 0);
+          chunk.textX = currentX + (rtlmode ? -boxX : boxX);
+          token.textX = currentX + (rtlmode ? -boxX : boxX);
+          // WEBANNO EXTENSION END
 
-        // WEBANNO EXTENSION BEGIN - RTL support - [currentX] adjustment for boxWidth (chunk)
-        /*
+          // WEBANNO EXTENSION BEGIN - RTL support - [currentX] adjustment for boxWidth (chunk)
+          /*
           currentX += boxWidth;
 */
-        currentX += rtlmode ? -boxWidth : boxWidth;
-        // WEBANNO EXTENSION END
+
+          currentX += rtlmode ? -textWidth : textWidth;
+          // WEBANNO EXTENSION END
+        });
       }); // chunks
       showSvg(500);
       // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
@@ -3874,6 +3877,7 @@ var Visualizer = (function($, window, undefined) {
 */
       var prevChunk = null;
       var rowTextGroup = null;
+      var preToken = null;
       // END WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
       $.each(data.chunks, function(chunkNo, chunk) {
         // context for sort
@@ -3892,236 +3896,252 @@ var Visualizer = (function($, window, undefined) {
           if (!sentenceText) {
             sentenceText = svg.createText();
           }
-*/       
-        // TODO:change
-        if (!rowTextGroup || prevChunk.row != chunk.row) {
-          if (rowTextGroup) {
-            horizontalSpacer(svg, rowTextGroup, 0, prevChunk.row.textY, 1, {
-              "data-chunk-id": prevChunk.index,
-              class: "row-final spacing"
-            });
-          }
-          rowTextGroup = svg.group(textGroup, { class: "text-row" });
-        }
-        prevChunk = chunk;
-        // END WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
+*/
 
-        var nextChunk = data.chunks[chunkNo + 1];
-        var nextSpace = nextChunk ? nextChunk.space : "";
-        // WEBANNO EXTENSION BEGIN - RTL support - Render chunks as SVG text
-        /*
+        chunk.tokens.forEach((token,tokenNo) => {
+          // TODO:change
+          if (!rowTextGroup || preToken.row != token.row) {
+            if (rowTextGroup) {
+              horizontalSpacer(svg, rowTextGroup, 0, preToken.row.textY, 1, {
+                "data-chunk-id": prevChunk.index,
+                class: "row-final spacing"
+              });
+            }
+            rowTextGroup = svg.group(textGroup, { clasMedical
+              Center
+               
+               
+               
+              between
+              2014
+              and
+              2016
+              .
+               "text-row" });
+          }
+          prevChunk = chunk;
+          preToken = token;
+          // END WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
+
+          // var nextChunk = data.chunks[chunkNo + 1];
+          var nextToken = chunk.tokens[tokenNo+1];
+          // var nextSpace = nextChunk ? nextChunk.space : "";
+          // WEBANNO EXTENSION BEGIN - RTL support - Render chunks as SVG text
+          /*
           sentenceText.span(chunk.text + nextSpace, {
             x: chunk.textX,
             y: chunk.row.textY,
             'data-chunk-id': chunk.index
           });
 */
-        if (rtlmode) {
-          // Render every text chunk as a SVG text so we maintain control over the layout. When
-          // rendering as a SVG span (as brat does), then the browser changes the layout on the
-          // X-axis as it likes in RTL mode.
-          // BEGIN WEBANNO EXTENSION - #316 Text selection behavior while dragging mouse
-          // BEGIN WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
-          /*
+          if (rtlmode) {
+            // Render every text chunk as a SVG text so we maintain control over the layout. When
+            // rendering as a SVG span (as brat does), then the browser changes the layout on the
+            // X-axis as it likes in RTL mode.
+            // BEGIN WEBANNO EXTENSION - #316 Text selection behavior while dragging mouse
+            // BEGIN WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
+            /*
             svg.text(textGroup, chunk.textX, chunk.row.textY, chunk.text + nextSpace, {
               'data-chunk-id': chunk.index
             });
  */
-          if (!rowTextGroup.firstChild) {
-            horizontalSpacer(svg, rowTextGroup, 0, chunk.row.textY, 1, {
-              class: "row-initial spacing",
+            if (!rowTextGroup.firstChild) {
+              horizontalSpacer(svg, rowTextGroup, 0, chunk.row.textY, 1, {
+                class: "row-initial spacing",
+                "data-chunk-id": chunk.index
+              });
+            }
+
+            svg.text(rowTextGroup, chunk.textX, chunk.row.textY, chunk.text, {
               "data-chunk-id": chunk.index
             });
-          }
 
-          svg.text(rowTextGroup, chunk.textX, chunk.row.textY, chunk.text, {
-            "data-chunk-id": chunk.index
-          });
-
-          // If there needs to be space between this chunk and the next one, add a spacer
-          // item that stretches across the entire inter-chunk space. This ensures a
-          // smooth selection.
-          if (nextChunk) {
-            var spaceX = chunk.textX - sizes.texts.widths[chunk.text];
-            var spaceWidth = chunk.textX - sizes.texts.widths[chunk.text] - nextChunk.textX;
-            horizontalSpacer(svg, rowTextGroup, spaceX, chunk.row.textY, spaceWidth, {
-              "data-chunk-id": chunk.index
-            });
-          }
-          // END WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
-          // END WEBANNO EXTENSION - #316 Text selection behavior while dragging mouse
-        } else {
-          // Original rendering using tspan in ltr mode as it play nicer with selection
-          // BEGIN WEBANNO EXTENSION - #316 Text selection behavior while dragging mouse
-          // BEGIN WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
-          /*
+            // If there needs to be space between this chunk and the next one, add a spacer
+            // item that stretches across the entire inter-chunk space. This ensures a
+            // smooth selection.
+            if (nextChunk) {
+              var spaceX = chunk.textX - sizes.texts.widths[chunk.text];
+              var spaceWidth = chunk.textX - sizes.texts.widths[chunk.text] - nextChunk.textX;
+              horizontalSpacer(svg, rowTextGroup, spaceX, chunk.row.textY, spaceWidth, {
+                "data-chunk-id": chunk.index
+              });
+            }
+            // END WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
+            // END WEBANNO EXTENSION - #316 Text selection behavior while dragging mouse
+          } else {
+            // Original rendering using tspan in ltr mode as it play nicer with selection
+            // BEGIN WEBANNO EXTENSION - #316 Text selection behavior while dragging mouse
+            // BEGIN WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
+            /*
             sentenceText.span(chunk.text + nextSpace, {
               x: chunk.textX,
               y: chunk.row.textY,
               'data-chunk-id': chunk.index});
  */
-          if (!rowTextGroup.firstChild) {
-            horizontalSpacer(svg, rowTextGroup, 0, chunk.row.textY, 1, {
-              class: "row-initial spacing",
+            if (!rowTextGroup.firstChild) {
+              horizontalSpacer(svg, rowTextGroup, 0, token.row.textY, 1, {
+                class: "row-initial spacing",
+                "data-chunk-id": chunk.index
+              });
+            }
+
+            svg.text(rowTextGroup, token.textX, token.row.textY, token.text, {
               "data-chunk-id": chunk.index
             });
-          }
 
-          svg.text(rowTextGroup, chunk.textX, chunk.row.textY, chunk.text, {
-            "data-chunk-id": chunk.index
-          });
-
-          // If there needs to be space between this chunk and the next one, add a spacer
-          // item that stretches across the entire inter-chunk space. This ensures a
-          // smooth selection.
-          if (nextChunk) {
-            var spaceX = chunk.textX + sizes.texts.widths[chunk.text];
-            var spaceWidth = nextChunk.textX - spaceX;
-            horizontalSpacer(svg, rowTextGroup, spaceX, chunk.row.textY, spaceWidth, {
-              "data-chunk-id": chunk.index
-            });
+            // If there needs to be space between this chunk and the next one, add a spacer
+            // item that stretches across the entire inter-chunk space. This ensures a
+            // smooth selection.
+            if (nextToken) {
+              var spaceX = token.textX + token.curly.to - token.curly.from;
+              var spaceWidth = nextToken.textX - spaceX;
+              horizontalSpacer(svg, rowTextGroup, spaceX, token.row.textY, spaceWidth, {
+                "data-chunk-id": chunk.index
+              });
+            }
+            // END WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
+            // END WEBANNO EXTENSION - #316 Text selection behavior while dragging mouse
           }
-          // END WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
-          // END WEBANNO EXTENSION - #316 Text selection behavior while dragging mouse
-        }
+        });
+
         // WEBANNO EXTENSION END
 
         // chunk backgrounds
-        if (chunk.fragments.length) {
-          var orderedIdx = [];
-          for (var i = chunk.fragments.length - 1; i >= 0; i--) {
-            orderedIdx.push(i);
-          }
+        //         if (chunk.fragments.length) {
+        //           var orderedIdx = [];
+        //           for (var i = chunk.fragments.length - 1; i >= 0; i--) {
+        //             orderedIdx.push(i);
+        //           }
 
-          // Mark entity nesting height/depth (number of
-          // nested/nesting entities). To account for crossing
-          // brackets in a (mostly) reasonable way, determine
-          // depth/height separately in a left-to-right traversal
-          // and a right-to-left traversal.
-          orderedIdx.sort(lrChunkComp);
+        //           // Mark entity nesting height/depth (number of
+        //           // nested/nesting entities). To account for crossing
+        //           // brackets in a (mostly) reasonable way, determine
+        //           // depth/height separately in a left-to-right traversal
+        //           // and a right-to-left traversal.
+        //           orderedIdx.sort(lrChunkComp);
 
-          var openFragments = [];
-          for (var i = 0; i < orderedIdx.length; i++) {
-            var current = chunk.fragments[orderedIdx[i]];
-            current.nestingHeightLR = 0;
-            current.nestingDepthLR = 0;
-            var stillOpen = [];
-            for (var o = 0; o < openFragments.length; o++) {
-              if (openFragments[o].to > current.from) {
-                stillOpen.push(openFragments[o]);
-                openFragments[o].nestingHeightLR++;
-              }
-            }
-            openFragments = stillOpen;
-            current.nestingDepthLR = openFragments.length;
-            openFragments.push(current);
-          }
+        //           var openFragments = [];
+        //           for (var i = 0; i < orderedIdx.length; i++) {
+        //             var current = chunk.fragments[orderedIdx[i]];
+        //             current.nestingHeightLR = 0;
+        //             current.nestingDepthLR = 0;
+        //             var stillOpen = [];
+        //             for (var o = 0; o < openFragments.length; o++) {
+        //               if (openFragments[o].to > current.from) {
+        //                 stillOpen.push(openFragments[o]);
+        //                 openFragments[o].nestingHeightLR++;
+        //               }
+        //             }
+        //             openFragments = stillOpen;
+        //             current.nestingDepthLR = openFragments.length;
+        //             openFragments.push(current);
+        //           }
 
-          // re-sort for right-to-left traversal by end position
-          orderedIdx.sort(rlChunkComp);
+        //           // re-sort for right-to-left traversal by end position
+        //           orderedIdx.sort(rlChunkComp);
 
-          openFragments = [];
-          for (var i = 0; i < orderedIdx.length; i++) {
-            var current = chunk.fragments[orderedIdx[i]];
-            current.nestingHeightRL = 0;
-            current.nestingDepthRL = 0;
-            var stillOpen = [];
-            for (var o = 0; o < openFragments.length; o++) {
-              if (openFragments[o].from < current.to) {
-                stillOpen.push(openFragments[o]);
-                openFragments[o].nestingHeightRL++;
-              }
-            }
-            openFragments = stillOpen;
-            current.nestingDepthRL = openFragments.length;
-            openFragments.push(current);
-          }
+        //           openFragments = [];
+        //           for (var i = 0; i < orderedIdx.length; i++) {
+        //             var current = chunk.fragments[orderedIdx[i]];
+        //             current.nestingHeightRL = 0;
+        //             current.nestingDepthRL = 0;
+        //             var stillOpen = [];
+        //             for (var o = 0; o < openFragments.length; o++) {
+        //               if (openFragments[o].from < current.to) {
+        //                 stillOpen.push(openFragments[o]);
+        //                 openFragments[o].nestingHeightRL++;
+        //               }
+        //             }
+        //             openFragments = stillOpen;
+        //             current.nestingDepthRL = openFragments.length;
+        //             openFragments.push(current);
+        //           }
 
-          // the effective depth and height are the max of those
-          // for the left-to-right and right-to-left traversals.
-          for (var i = 0; i < orderedIdx.length; i++) {
-            var c = chunk.fragments[orderedIdx[i]];
-            c.nestingHeight = c.nestingHeightLR > c.nestingHeightRL ? c.nestingHeightLR : c.nestingHeightRL;
-            c.nestingDepth = c.nestingDepthLR > c.nestingDepthRL ? c.nestingDepthLR : c.nestingDepthRL;
-          }
+        //           // the effective depth and height are the max of those
+        //           // for the left-to-right and right-to-left traversals.
+        //           for (var i = 0; i < orderedIdx.length; i++) {
+        //             var c = chunk.fragments[orderedIdx[i]];
+        //             c.nestingHeight = c.nestingHeightLR > c.nestingHeightRL ? c.nestingHeightLR : c.nestingHeightRL;
+        //             c.nestingDepth = c.nestingDepthLR > c.nestingDepthRL ? c.nestingDepthLR : c.nestingDepthRL;
+        //           }
 
-          // Re-order by nesting height and draw in order
-          orderedIdx.sort(function(a, b) {
-            return Util.cmp(chunk.fragments[b].nestingHeight, chunk.fragments[a].nestingHeight);
-          });
+        //           // Re-order by nesting height and draw in order
+        //           orderedIdx.sort(function(a, b) {
+        //             return Util.cmp(chunk.fragments[b].nestingHeight, chunk.fragments[a].nestingHeight);
+        //           });
 
-          for (var i = 0; i < chunk.fragments.length; i++) {
-            var fragment = chunk.fragments[orderedIdx[i]];
-            var spanDesc = spanTypes[fragment.span.type];
-            var bgColor =
-              (spanDesc && spanDesc.bgColor) || (spanTypes.SPAN_DEFAULT && spanTypes.SPAN_DEFAULT.bgColor) || "#ffffff";
-            if (fragment.span.hidden) continue;
+        //           for (var i = 0; i < chunk.fragments.length; i++) {
+        //             var fragment = chunk.fragments[orderedIdx[i]];
+        //             var spanDesc = spanTypes[fragment.span.type];
+        //             var bgColor =
+        //               (spanDesc && spanDesc.bgColor) || (spanTypes.SPAN_DEFAULT && spanTypes.SPAN_DEFAULT.bgColor) || "#ffffff";
+        //             if (fragment.span.hidden) continue;
 
-            // WEBANNO EXTENSION BEGIN - #820 - Allow setting label/color individually
-            if (fragment.span.color) {
-              bgColor = fragment.span.color;
-            }
-            // WEBANNO EXTENSION END
+        //             // WEBANNO EXTENSION BEGIN - #820 - Allow setting label/color individually
+        //             if (fragment.span.color) {
+        //               bgColor = fragment.span.color;
+        //             }
+        //             // WEBANNO EXTENSION END
 
-            // Tweak for nesting depth/height. Recognize just three
-            // levels for now: normal, nested, and nesting, where
-            // nested+nesting yields normal. (Currently testing
-            // minor tweak: don't shrink for depth 1 as the nesting
-            // highlight will grow anyway [check nestingDepth > 1])
-            var shrink = 0;
-            if (fragment.nestingDepth > 1 && fragment.nestingHeight == 0) {
-              shrink = 1;
-            } else if (fragment.nestingDepth == 0 && fragment.nestingHeight > 0) {
-              shrink = -1;
-            }
-            var yShrink = shrink * nestingAdjustYStepSize;
-            var xShrink = shrink * nestingAdjustXStepSize;
-            // bit lighter
-            var lightBgColor = Util.adjustColorLightness(bgColor, 0.8);
-            // tweak for Y start offset (and corresponding height
-            // reduction): text rarely hits font max height, so this
-            // tends to look better
-            var yStartTweak = 1;
-            // store to have same mouseover highlight without recalc
-            // WEBANNO EXTENSION BEGIN - RTL support - Highlight positions
-            /*
-              fragment.highlightPos = {
-                  x: chunk.textX + fragment.curly.from + xShrink,
-                  y: chunk.row.textY + sizes.texts.y + yShrink + yStartTweak,
-                  w: fragment.curly.to - fragment.curly.from - 2*xShrink,
-                  h: sizes.texts.height - 2*yShrink - yStartTweak,
-              };
-*/
-            // Store highlight coordinates
-            fragment.highlightPos = {
-              x: chunk.textX + (rtlmode ? fragment.curly.from - xShrink : fragment.curly.from + xShrink),
-              y: chunk.row.textY + sizes.texts.y + yShrink + yStartTweak,
-              w: fragment.curly.to - fragment.curly.from - 2 * xShrink,
-              h: sizes.texts.height - 2 * yShrink - yStartTweak
-            };
-            // WEBANNO EXTENSION END
-            // WEBANNO EXTENSION BEGIN - #361 Avoid rendering exception with zero-width spans
-            // Avoid exception because width < 0 is not allowed
-            if (fragment.highlightPos.w <= 0) {
-              fragment.highlightPos.w = 1;
-            }
-            // WEBANNO EXTENSION END - #361 Avoid rendering exception with zero-width spans
-            // Render highlight
-            // ============================== 添加高亮文字 ==============================
-            svg.rect(
-              highlightGroup,
-              fragment.highlightPos.x,
-              fragment.highlightPos.y,
-              fragment.highlightPos.w,
-              fragment.highlightPos.h,
-              {
-                fill: lightBgColor, //opacity:1,
-                rx: highlightRounding.x,
-                ry: highlightRounding.y
-              }
-            );
-          }
-        }
+        //             // Tweak for nesting depth/height. Recognize just three
+        //             // levels for now: normal, nested, and nesting, where
+        //             // nested+nesting yields normal. (Currently testing
+        //             // minor tweak: don't shrink for depth 1 as the nesting
+        //             // highlight will grow anyway [check nestingDepth > 1])
+        //             var shrink = 0;
+        //             if (fragment.nestingDepth > 1 && fragment.nestingHeight == 0) {
+        //               shrink = 1;
+        //             } else if (fragment.nestingDepth == 0 && fragment.nestingHeight > 0) {
+        //               shrink = -1;
+        //             }
+        //             var yShrink = shrink * nestingAdjustYStepSize;
+        //             var xShrink = shrink * nestingAdjustXStepSize;
+        //             // bit lighter
+        //             var lightBgColor = Util.adjustColorLightness(bgColor, 0.8);
+        //             // tweak for Y start offset (and corresponding height
+        //             // reduction): text rarely hits font max height, so this
+        //             // tends to look better
+        //             var yStartTweak = 1;
+        //             // store to have same mouseover highlight without recalc
+        //             // WEBANNO EXTENSION BEGIN - RTL support - Highlight positions
+        //             /*
+        //               fragment.highlightPos = {
+        //                   x: chunk.textX + fragment.curly.from + xShrink,
+        //                   y: chunk.row.textY + sizes.texts.y + yShrink + yStartTweak,
+        //                   w: fragment.curly.to - fragment.curly.from - 2*xShrink,
+        //                   h: sizes.texts.height - 2*yShrink - yStartTweak,
+        //               };
+        // */
+        //             // Store highlight coordinates
+        //             fragment.highlightPos = {
+        //               x: chunk.textX + (rtlmode ? fragment.curly.from - xShrink : fragment.curly.from + xShrink),
+        //               y: chunk.row.textY + sizes.texts.y + yShrink + yStartTweak,
+        //               w: fragment.curly.to - fragment.curly.from - 2 * xShrink,
+        //               h: sizes.texts.height - 2 * yShrink - yStartTweak
+        //             };
+        //             // WEBANNO EXTENSION END
+        //             // WEBANNO EXTENSION BEGIN - #361 Avoid rendering exception with zero-width spans
+        //             // Avoid exception because width < 0 is not allowed
+        //             if (fragment.highlightPos.w <= 0) {
+        //               fragment.highlightPos.w = 1;
+        //             }
+        //             // WEBANNO EXTENSION END - #361 Avoid rendering exception with zero-width spans
+        //             // Render highlight
+        //             // ============================== 添加高亮文字 ==============================
+        //             svg.rect(
+        //               highlightGroup,
+        //               fragment.highlightPos.x,
+        //               fragment.highlightPos.y,
+        //               fragment.highlightPos.w,
+        //               fragment.highlightPos.h,
+        //               {
+        //                 fill: lightBgColor, //opacity:1,
+        //                 rx: highlightRounding.x,
+        //                 ry: highlightRounding.y
+        //               }
+        //             );
+        //           }
+        //         }
       });
 
       // BEGIN WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
