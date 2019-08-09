@@ -118,8 +118,9 @@ token_offsets > chunks 确定 chunk 的 text
     重叠 修改重叠算法 complete
     跨行 跨行时他会创建新行 修改 他是按照 chunk 进行文字渲染 需要将 chunk 渲染改成单个文字渲染
         记录每个 token 宽度 complete
-        通过 token 宽度计算 currentX
-        超出 canvasWidth 创建新行
+        根据token生成row complete
+        通过 token 宽度计算 currentX ！！！没有生成space
+        超出 canvasWidth 创建新行 
         将按 chunk 渲染改成按 token 渲染(需要计算 space)
         增加 currentX
 数据交互问题 complete
