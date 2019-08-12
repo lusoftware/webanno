@@ -860,16 +860,24 @@ var Visualizer = (function($, window, undefined) {
         var tokens = [];
         // TODO:extension end - 04 - add token to chunk
         // token containment testing (chunk recognition)
-        $.each(sourceData.token_offsets, function() {
+        $.each(sourceData.token_offsets, function(offsetNo) {
           var from = this[0];
           var to = this[1];
           if (firstFrom === null) firstFrom = from;
           // TODO:extension begin - 04 - add token to chunk
-          tokens.push({
+          var token = {
             from,
             to,
-            text: data.text.substring(from, to)
-          });
+            text: data.text.substring(from, to),
+            lastSpace:""
+          }
+          // TODO:extension start - 05 - add space to token
+          var nextOffset = sourceData.token_offsets[offsetNo + 1];
+          if(nextOffset){
+            token.lastSpace = data.text.substring(to, nextOffset[0]);
+          }
+          // TODO:extension end - 05 - add space to token
+          tokens.push(token);
           // TODO:extension end - 04 - add token to chunk
 
           // Replaced for speedup; TODO check correctness
