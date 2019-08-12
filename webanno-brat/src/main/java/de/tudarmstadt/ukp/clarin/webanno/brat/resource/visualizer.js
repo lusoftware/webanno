@@ -1112,9 +1112,13 @@ var Visualizer = (function($, window, undefined) {
         var lastFragment = null;
         var towerId = -1;
         $.each(sortedFragments, function(i, fragment) {
-          if (!lastFragment || (lastFragment.from != fragment.from || lastFragment.to != fragment.to)) {
-            towerId++;
-          }
+          // TODO:extension begin - 11 - Modify overlap algorithm
+          // comment code
+          // if (!lastFragment || (lastFragment.from != fragment.from || lastFragment.to != fragment.to)) {
+          //   towerId++;
+          // }
+          towerId++;
+          // TODO:extension end - 11 - Modify overlap algorithm
           fragment.towerId = towerId;
           lastFragment = fragment;
         }); // sortedFragments
@@ -1831,13 +1835,17 @@ Util.profileStart('chunks');
           var f1 = span.fragments[0];
           var f2 = span.fragments[span.fragments.length - 1];
 
-          var x1 = (f1.curly.from + f1.curly.to - f1.width) / 2 -
-              Configuration.visual.margin.x;
+          // TODO:extension begin - 11 - Modify overlap algorithm
+          // var x1 = (f1.curly.from + f1.curly.to - f1.width) / 2 -
+          //     Configuration.visual.margin.x;
+          var x1 = f1.curly.from;
           var i1 = f1.chunk.index;
 
-          var x2 = (f2.curly.from + f2.curly.to + f2.width) / 2 +
-              Configuration.visual.margin.x;
+          // var x2 = (f2.curly.from + f2.curly.to + f2.width) / 2 +
+          //     Configuration.visual.margin.x;
+          var x2 = f2.curly.to;
           var i2 = f2.chunk.index;
+          // TODO:extension end - 11 - Modify overlap algorithm
 
           // Start from the ground level, going up floor by floor.
           // If no more floors, make a new available one.
@@ -1931,7 +1939,9 @@ Util.profileStart('chunks');
               reservations[i][floor].push([from, to, headroom]); // XXX maybe add fragment; probably unnecessary
             }
           }
-          span.floor = carpet + thisCurlyHeight;
+          // TODO:extension start - 11 - Modify overlap algorithm
+          span.floor = (carpet + thisCurlyHeight) * 1.6 + 2;
+          // TODO:extension end - 11 - Modify overlap algorithm
         });
 
         $.each(data.chunks, function(chunkNo, chunk) {
