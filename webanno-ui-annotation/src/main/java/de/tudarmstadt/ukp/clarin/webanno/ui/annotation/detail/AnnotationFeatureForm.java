@@ -153,6 +153,7 @@ public class AnnotationFeatureForm
         container.add(featureEditorPanelContent = createFeatureEditorPanelContent());
         container.add(createSelectedTextLabel());
         container.add(selectedAnnotationLayer = createSelectedAnnotationLayerLabel());
+        container.add(createAnnotationClassSelector());
 
         return container;
     }
@@ -200,6 +201,25 @@ public class AnnotationFeatureForm
         label.add(visibleWhen(() -> getModelObject().getPreferences().isRememberLayer()));
         return label;
     }
+    // TODO:extension begin - 12 - add class select
+    IModel<String> dropdownModel = null;
+    private DropDownChoice<String> createAnnotationClassSelector()
+    {
+        List<String> classList = new ArrayList<String>();
+        classList.add("rect");
+        classList.add("circle");
+        dropdownModel = new Model<String>(classList.get(0));
+        DropDownChoice<String> selector = new DropDownChoice<String>("select",dropdownModel,classList);
+        selector.setOutputMarkupId(true);
+        selector.add(LambdaAjaxFormComponentUpdatingBehavior.onUpdate("change",
+                this::classSelector));
+        return selector;
+    }
+    
+    private void classSelector(AjaxRequestTarget aTarget){
+        editorPanel.classSelector(aTarget,dropdownModel);
+    }
+    // TODO:extension end - 12 - add class select
 
     private Label createSelectedAnnotationTypeLabel()
     {

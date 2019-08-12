@@ -52,6 +52,10 @@ public class GetDocumentResponse
 
     private String text;
 
+    // TODO:extension begin - 12 - add class select
+    private String shape;
+    // TODO:extension end - 12 - add class select
+
     @JsonProperty("source_files")
     private List<String> sourceFiles = new ArrayList<>();
 
@@ -135,7 +139,15 @@ public class GetDocumentResponse
     {
         text = aText;
     }
+    // TODO:extension begin - 12 - add class select
+    public String getShape() {
+		return shape;
+	}
 
+	public void setShape(String shape) {
+		this.shape = shape;
+    }
+    // TODO:extension end - 12 - add class select
     public List<Comment> getComments()
     {
         return comments;

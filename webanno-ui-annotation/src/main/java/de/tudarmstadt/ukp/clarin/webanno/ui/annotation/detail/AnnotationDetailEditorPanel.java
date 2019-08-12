@@ -997,6 +997,13 @@ public abstract class AnnotationDetailEditorPanel
         onChange(aTarget);
         onDelete(aTarget, fs);
     }
+    // TODO:extension begin - 12 - add class select
+    public void classSelector(AjaxRequestTarget aTarget, IModel model){
+        AnnotatorState state = getModelObject();
+        state.getPreferences().setShape((String)model.getObject());
+        onChange(aTarget);
+    }
+    // TODO:extension end - 12 - add class select
 
     private void deleteAnnotation(CAS aCas, AnnotatorState state, AnnotationFS fs,
             AnnotationLayer layer, TypeAdapter adapter) {

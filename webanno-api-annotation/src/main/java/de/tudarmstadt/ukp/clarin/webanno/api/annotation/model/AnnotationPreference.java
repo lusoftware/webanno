@@ -78,6 +78,18 @@ public class AnnotationPreference
     
     private String editor;
 
+    // TODO:extension begin - 12 - add class select
+    private String shape;
+
+    public String getShape() {
+		return shape;
+	}
+
+	public void setShape(String shape) {
+		this.shape = shape;
+	}
+    // TODO:extension begin - 12 - add class select
+    
     /**
      * working with preferred layers is deprecated, use hidden layers instead
      * @return

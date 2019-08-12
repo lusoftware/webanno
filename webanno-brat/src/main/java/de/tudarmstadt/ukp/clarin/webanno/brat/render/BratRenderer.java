@@ -119,6 +119,7 @@ public class BratRenderer
     {
         aResponse.setRtlMode(ScriptDirection.RTL.equals(aState.getScriptDirection()));
         aResponse.setFontZoom(aState.getPreferences().getFontZoom());
+        aResponse.setShape(aState.getPreferences().getShape());
 
         // Render invisible baseline annotations (sentence, tokens)
         renderText(aCas, aResponse, aState);
