@@ -982,6 +982,16 @@ var Visualizer = (function($, window, undefined) {
         $.each(sortedFragments, function(fragmentId, fragment) {
           while (fragment.to > (chunk = data.chunks[currentChunkId]).to) currentChunkId++;
           chunk.fragments.push(fragment);
+          // TODO:extension begin - 07 - add token to fragment
+          fragment.tokens = [];
+          chunk.tokens.forEach(function(token) {
+            token.fragments = [];
+            if (token.from >= fragment.from && token.to <= fragment.to) {
+              token.fragments.push(fragment);
+              fragment.tokens.push(token);
+            }
+          });
+          // TODO:extension end - 07 - add token to fragment
           fragment.text = chunk.text.substring(fragment.from - chunk.from, fragment.to - chunk.from);
           fragment.chunk = chunk;
         });
