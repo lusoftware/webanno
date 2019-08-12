@@ -30,6 +30,7 @@ import static org.apache.wicket.util.string.Strings.escapeMarkup;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -122,11 +123,19 @@ public class AnnotationFeatureForm
     private @SpringBean UserPreferencesService userPreferencesService;
     private @SpringBean UserDao userDao;
 
+    // TODO:extension start - 13 - add approve select
+    private HashMap<String,Boolean> approveMap = new HashMap<String,Boolean>();
+    // TODO:extension end - 13 - add approve select
+
     AnnotationFeatureForm(AnnotationDetailEditorPanel aEditorPanel, String id,
         IModel<AnnotatorState> aState)
     {
         super(id, new CompoundPropertyModel<>(aState));
         editorPanel = aEditorPanel;
+        // TODO:extension start - 13 - add approve select
+        approveMap.put("yes", true);
+        approveMap.put("no", false);
+        // TODO:extension end - 13 - add approve select
         add(forwardAnnotationCheckBox = createForwardAnnotationCheckBox());
         add(createNoAnnotationWarningLabel());
         add(deleteAnnotationDialog = createDeleteDialog());
@@ -154,6 +163,7 @@ public class AnnotationFeatureForm
         container.add(createSelectedTextLabel());
         container.add(selectedAnnotationLayer = createSelectedAnnotationLayerLabel());
         container.add(createAnnotationClassSelector());
+        container.add(createAnnotationApproveCheck());
 
         return container;
     }
@@ -220,7 +230,25 @@ public class AnnotationFeatureForm
         editorPanel.classSelector(aTarget,dropdownModel);
     }
     // TODO:extension end - 12 - add class select
+    // TODO:extension start - 13 - add approve select
+    IModel<String> checkModel = null;
+    private DropDownChoice<String> createAnnotationApproveCheck(){
+        List<String> approveList = new ArrayList<String>();
+        approveList.add("no");
+        approveList.add("yes");
+        checkModel = new Model<String>(approveList.get(0));
+        DropDownChoice<String> check = new DropDownChoice<String>("approve",checkModel,approveList);
+        check.setOutputMarkupId(true);
+        check.add(LambdaAjaxFormComponentUpdatingBehavior.onUpdate("change",
+                this::approveAnnotation));
+        return check;
+    }
 
+    private void approveAnnotation(AjaxRequestTarget aTarget)
+    {
+		editorPanel.approveAnnotation(aTarget, approveMap.get((String)checkModel.getObject()));
+    }
+    // TODO:extension end - 13 - add approve select
     private Label createSelectedAnnotationTypeLabel()
     {
         Label label = new Label("selectedAnnotationType", LoadableDetachableModel.of(() -> {

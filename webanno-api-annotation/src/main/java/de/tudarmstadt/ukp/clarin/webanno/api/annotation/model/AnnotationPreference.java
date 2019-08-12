@@ -88,8 +88,18 @@ public class AnnotationPreference
 	public void setShape(String shape) {
 		this.shape = shape;
 	}
-    // TODO:extension begin - 12 - add class select
-    
+    // TODO:extension end - 12 - add class select
+    // TODO:extension begin - 13 - add approve select
+    private Boolean approve;
+
+    public Boolean getApprove() {
+		return approve;
+	}
+
+	public void setApprove(Boolean approve) {
+		this.approve = approve;
+	}
+    // TODO:extension end - 13 - add approve select
     /**
      * working with preferred layers is deprecated, use hidden layers instead
      * @return

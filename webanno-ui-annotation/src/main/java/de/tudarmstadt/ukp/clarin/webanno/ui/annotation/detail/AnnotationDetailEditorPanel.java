@@ -1004,7 +1004,13 @@ public abstract class AnnotationDetailEditorPanel
         onChange(aTarget);
     }
     // TODO:extension end - 12 - add class select
-
+    // TODO:extension begin - 13 - add class select
+    public void approveAnnotation(AjaxRequestTarget aTarget, Boolean approve){
+        AnnotatorState state = getModelObject();
+        state.getPreferences().setApprove(approve);
+        onChange(aTarget);
+    }
+    // TODO:extension end - 13 - add class select
     private void deleteAnnotation(CAS aCas, AnnotatorState state, AnnotationFS fs,
             AnnotationLayer layer, TypeAdapter adapter) {
         // == DELETE ATTACHED RELATIONS ==

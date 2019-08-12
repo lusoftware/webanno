@@ -55,6 +55,9 @@ public class GetDocumentResponse
     // TODO:extension begin - 12 - add class select
     private String shape;
     // TODO:extension end - 12 - add class select
+    // TODO:extension begin - 13 - add approve select
+    private Boolean approve;
+    // TODO:extension end - 13 - add approve select
 
     @JsonProperty("source_files")
     private List<String> sourceFiles = new ArrayList<>();
@@ -148,6 +151,15 @@ public class GetDocumentResponse
 		this.shape = shape;
     }
     // TODO:extension end - 12 - add class select
+    // TODO:extension begin - 13 - add approve select
+    public Boolean getApprove() {
+		return approve;
+	}
+
+	public void setApprove(Boolean approve) {
+		this.approve = approve;
+    }
+    // TODO:extension end - 13 - add approve select
     public List<Comment> getComments()
     {
         return comments;
