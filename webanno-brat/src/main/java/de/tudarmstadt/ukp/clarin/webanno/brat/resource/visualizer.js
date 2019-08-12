@@ -1126,11 +1126,8 @@ var Visualizer = (function($, window, undefined) {
           $.each(span.fragments, function(fragmentNo, fragment) {
             if (!data.towers[fragment.towerId]) {
               data.towers[fragment.towerId] = [];
-              // TODO:extension begin - 01 - remove curly
-              // true to false
-              fragment.drawCurly = false;
-              fragment.span.drawCurly = false;
-              // TODO:extension end - 01 - remove curly
+              fragment.drawCurly = true;
+              fragment.span.drawCurly = true;
             }
             data.towers[fragment.towerId].push(fragment);
           });
@@ -2205,18 +2202,74 @@ Util.profileStart('chunks');
               }
 
               var bottom = yy + hh + Configuration.visual.margin.y - span.floor + 1;
-              svg.path(fragment.group, svg.createPath()
+              // svg.path(fragment.group, svg.createPath()
+              //     .move(fragment.curly.from, bottom + Configuration.visual.curlyHeight)
+              //     .curveC(fragment.curly.from, bottom,
+              //       x, bottom + Configuration.visual.curlyHeight,
+              //       x, bottom)
+              //     .curveC(x, bottom + Configuration.visual.curlyHeight,
+              //       fragment.curly.to, bottom,
+              //       fragment.curly.to, bottom + Configuration.visual.curlyHeight),
+              //   {
+              //     'class': 'curly',
+              //     'stroke': curlyColor,
+              //   });
+              // TODO:extension begin - 09 - add both curly
+              var offset = 6;
+              var harf = bh / 2;
+              svg.path(
+                fragment.group,
+                svg
+                  .createPath()
                   .move(fragment.curly.from, bottom + Configuration.visual.curlyHeight)
-                  .curveC(fragment.curly.from, bottom,
-                    x, bottom + Configuration.visual.curlyHeight,
-                    x, bottom)
-                  .curveC(x, bottom + Configuration.visual.curlyHeight,
-                    fragment.curly.to, bottom,
-                    fragment.curly.to, bottom + Configuration.visual.curlyHeight),
+                  .curveC(
+                    fragment.curly.from - offset,
+                    bottom + Configuration.visual.curlyHeight,
+                    fragment.curly.from,
+                    bottom - harf,
+                    fragment.curly.from - offset,
+                    bottom - harf
+                  )
+                  .curveC(
+                    fragment.curly.from,
+                    bottom - harf,
+                    fragment.curly.from - offset,
+                    bottom - bh - Configuration.visual.curlyHeight,
+                    fragment.curly.from,
+                    bottom - bh - Configuration.visual.curlyHeight
+                  ),
                 {
-                  'class': 'curly',
-                  'stroke': curlyColor,
-                });
+                  class: "curly",
+                  stroke: curlyColor
+                }
+              );
+              svg.path(
+                fragment.group,
+                svg
+                  .createPath()
+                  .move(fragment.curly.to, bottom + Configuration.visual.curlyHeight)
+                  .curveC(
+                    fragment.curly.to + offset,
+                    bottom + Configuration.visual.curlyHeight,
+                    fragment.curly.to,
+                    bottom - harf,
+                    fragment.curly.to + offset,
+                    bottom - harf
+                  )
+                  .curveC(
+                    fragment.curly.to,
+                    bottom - harf,
+                    fragment.curly.to + offset,
+                    bottom - bh - Configuration.visual.curlyHeight,
+                    fragment.curly.to,
+                    bottom - bh - Configuration.visual.curlyHeight
+                  ),
+                {
+                  class: "curly",
+                  stroke: curlyColor
+                }
+              );
+              // TODO:extension end - 09 - add both curly
               chunkFrom = Math.min(fragment.curly.from, chunkFrom);
               chunkTo = Math.max(fragment.curly.to, chunkTo);
               fragmentHeight = Math.max(Configuration.visual.curlyHeight, fragmentHeight);
