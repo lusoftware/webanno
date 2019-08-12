@@ -2053,16 +2053,19 @@ Util.profileStart('chunks');
 
             var shadowRect;
             var markedRect;
-            if (span.marked) {
-              markedRect = svg.rect(chunk.highlightGroup,
-                  bx - markedSpanSize, by - markedSpanSize,
-                  bw + 2 * markedSpanSize, bh + 2 * markedSpanSize, {
+            // TODO:extension begin - 10 - remove fragment highlight
+            // if (span.marked) {
+              
+              // comment code
+              // markedRect = svg.rect(chunk.highlightGroup,
+              //     bx - markedSpanSize, by - markedSpanSize,
+              //     bw + 2 * markedSpanSize, bh + 2 * markedSpanSize, {
 
-                  filter: 'url(#Gaussian_Blur)',
-                  'class': "shadow_EditHighlight",
-                  rx: markedSpanSize,
-                  ry: markedSpanSize,
-              });
+              //     filter: 'url(#Gaussian_Blur)',
+              //     'class': "shadow_EditHighlight",
+              //     rx: markedSpanSize,
+              //     ry: markedSpanSize,
+              // });
 // WEBANNO EXTENSION BEGIN - Issue #1319 - Glowing highlight causes 100% CPU load
 /*
               svg.other(markedRect, 'animate', {
@@ -2076,7 +2079,8 @@ Util.profileStart('chunks');
               });
 */
 // WEBANNO EXTENSION END - Issue #1319 - Glowing highlight causes 100% CPU load
-            }
+            // }
+            // TODO:extension end - 10 - remove fragment highlight
 // BEGIN WEBANNO EXTENSION - Issue #273 - Layout doesn't space out labels sufficiently 
             // Nicely spread out labels/text and leave space for mark highlight such that adding
             // the mark doesn't change the overall layout
@@ -2161,7 +2165,12 @@ Util.profileStart('chunks');
             if (!fragmentHeights[spacedTowerId] || fragmentHeights[spacedTowerId] < fragment.height) {
               fragmentHeights[spacedTowerId] = fragment.height;
             }
-            $(fragment.rect).attr('y', yy - Configuration.visual.margin.y - span.floor);
+            // TODO:estension begin - 08 - add token rect
+            // $(fragment.rect).attr('y', yy - Configuration.visual.margin.y - span.floor);
+            fragment.tokens.forEach(function(token) {
+              $(token.rect).attr("y", yy - Configuration.visual.margin.y - span.floor);
+            });
+            // TODO:estension end - 08 - add token rect
             if (shadowRect) {
               $(shadowRect).attr('y', yy - rectShadowSize - Configuration.visual.margin.y - span.floor);
             }
