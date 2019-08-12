@@ -594,6 +594,10 @@ var Visualizer = (function($, window, undefined) {
 
 
       var setData = function(_sourceData) {
+        // TODO:extension begin - debug - sourceData
+        console.debug("sourceData", _sourceData);
+        window.sourceData = _sourceData;
+        // TODO:extension end - debug - sourceData
         if (!args) args = {};
         sourceData = _sourceData;
         dispatcher.post('newSourceData', [sourceData]);
