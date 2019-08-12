@@ -1090,8 +1090,11 @@ var Visualizer = (function($, window, undefined) {
           $.each(span.fragments, function(fragmentNo, fragment) {
             if (!data.towers[fragment.towerId]) {
               data.towers[fragment.towerId] = [];
-              fragment.drawCurly = true;
-              fragment.span.drawCurly = true;
+              // TODO:extension begin - 01 - remove curly
+              // true to false
+              fragment.drawCurly = false;
+              fragment.span.drawCurly = false;
+              // TODO:extension end - 01 - remove curly
             }
             data.towers[fragment.towerId].push(fragment);
           });
