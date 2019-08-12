@@ -2096,7 +2096,10 @@ Util.profileStart('chunks');
                   line(xx, yy + hh + Configuration.visual.margin.y - span.floor),
                   { 'class': 'boxcross' });
             }
-            svg.text(fragment.group, x, y - span.floor, data.spanAnnTexts[fragment.glyphedLabelText], { fill: fgColor });
+            // TODO:extension begin - 03 - remove annotation type text
+            // comment code
+            // svg.text(fragment.group, x, y - span.floor, data.spanAnnTexts[fragment.glyphedLabelText], { fill: fgColor });
+            // TODO:extension end - 03 - remove annotation type text
 
             // Make curlies to show the fragment
             if (fragment.drawCurly) {
