@@ -856,11 +856,21 @@ var Visualizer = (function($, window, undefined) {
         var chunkNo = 0;
         var space;
         var chunk = null;
+        // TODO:extension begin - 04 - add token to chunk
+        var tokens = [];
+        // TODO:extension end - 04 - add token to chunk
         // token containment testing (chunk recognition)
         $.each(sourceData.token_offsets, function() {
           var from = this[0];
           var to = this[1];
           if (firstFrom === null) firstFrom = from;
+          // TODO:extension begin - 04 - add token to chunk
+          tokens.push({
+            from,
+            to,
+            text: data.text.substring(from, to)
+          });
+          // TODO:extension end - 04 - add token to chunk
 
           // Replaced for speedup; TODO check correctness
           // inSpan = false;
@@ -894,6 +904,10 @@ var Visualizer = (function($, window, undefined) {
           //               (index,     text, from,      to, space) {
           chunk = new Chunk(chunkNo++, text, firstFrom, to, space);
           chunk.lastSpace = space;
+          // TODO:extension begin - 04 - add token to chunk
+          chunk.token = tokens;
+          tokens = [];
+          // TODO:extension end - 04 - add token to chunk
           data.chunks.push(chunk);
           lastTo = to;
           firstFrom = null;
