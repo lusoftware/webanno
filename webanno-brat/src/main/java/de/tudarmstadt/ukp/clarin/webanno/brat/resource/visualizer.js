@@ -913,7 +913,7 @@ var Visualizer = (function($, window, undefined) {
           chunk = new Chunk(chunkNo++, text, firstFrom, to, space);
           chunk.lastSpace = space;
           // TODO:extension begin - 04 - add token to chunk
-          chunk.token = tokens;
+          chunk.tokens = tokens;
           tokens = [];
           // TODO:extension end - 04 - add token to chunk
           data.chunks.push(chunk);
@@ -1341,6 +1341,28 @@ var Visualizer = (function($, window, undefined) {
         return new Measurements(widths, bbox.height, bbox.y);
       };
 
+      // TODO:extension begin - 06 - evaluate token position
+      var getTokenMeasurements = function(chunk, token, text) {
+        var firstChar = token.from - chunk.from;
+        var lastChar = token.to - chunk.from - 1;
+        if (firstChar < text.getNumberOfChars()) {
+          startPos = text.getStartPositionOfChar(firstChar).x;
+        } else {
+          startPos = text.getComputedTextLength();
+        }
+        endPos = lastChar < firstChar ? startPos : text.getEndPositionOfChar(lastChar).x;
+  
+        if (rtlmode) {
+          startPos = -startPos;
+          endPos = -endPos;
+        }
+        token.curly = {
+          from: Math.min(startPos, endPos),
+          to: Math.max(startPos, endPos)
+        };
+      };
+      // TODO:extension end - 06 - evaluate token position
+
       var getTextAndSpanTextMeasurements = function() {
         // get the span text sizes
         var chunkTexts = {}; // set of span texts
@@ -1361,6 +1383,12 @@ var Visualizer = (function($, window, undefined) {
           chunkTexts,
           undefined,
           function(fragment, text) {
+            var chunk = fragment.chunk;
+            if(chunk && !chunk.tokens[0].curly){
+              chunk.tokens.forEach(token => {
+                getTokenMeasurements(chunk, token, text);
+              });
+            }
             if (fragment instanceof Fragment) { // it's a fragment!
               // measure the fragment text position in pixels
               var firstChar = fragment.from - fragment.chunk.from;
