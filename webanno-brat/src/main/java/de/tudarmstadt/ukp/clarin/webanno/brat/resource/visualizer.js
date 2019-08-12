@@ -2037,18 +2037,21 @@ Util.profileStart('chunks');
               chunkTo = Math.max(bx + bw + rectShadowSize, chunkTo);
               fragmentHeight = Math.max(bh + 2 * rectShadowSize, fragmentHeight);
             }
-            fragment.rect = svg.rect(fragment.group,
-                bx, by, bw, bh, {
+            // TODO:estension begin - 02 - remove fragment rect
+            // comment code
+            // fragment.rect = svg.rect(fragment.group,
+            //     bx, by, bw, bh, {
 
-                'class': rectClass,
-                fill: bgColor,
-                stroke: borderColor,
-                rx: Configuration.visual.margin.x,
-                ry: Configuration.visual.margin.y,
-                'data-span-id': span.id,
-                'data-fragment-id': span.segmentedOffsetsMap[fragment.id],
-                'strokeDashArray': span.attributeMerge.dashArray,
-              });
+            //     'class': rectClass,
+            //     fill: bgColor,
+            //     stroke: borderColor,
+            //     rx: Configuration.visual.margin.x,
+            //     ry: Configuration.visual.margin.y,
+            //     'data-span-id': span.id,
+            //     'data-fragment-id': span.segmentedOffsetsMap[fragment.id],
+            //     'strokeDashArray': span.attributeMerge.dashArray,
+            //   });
+            // TODO:estension end - 02 - remove fragment rect
 
 // BEGIN WEBANNO EXTENSION - WebAnno does not support marking normalizations
 /*
