@@ -2120,6 +2120,25 @@ Util.profileStart('chunks');
             //   });
             // TODO:estension end - 02 - remove fragment rect
 
+            // TODO:estension begin - 08 - add token rect
+            fragment.tokens.forEach(function(token,tokenNo) {
+              var x = (token.curly.from + token.curly.to) / 2;
+              var xx = x - ww / 2;
+              xx += boxTextMargin.x;
+              var bx = xx - Configuration.visual.margin.x - boxTextMargin.x;
+              token.rect = svg.rect(fragment.group, bx, by, bw, bh, {
+                class: rectClass,
+                fill: bgColor,
+                stroke: borderColor,
+                rx: Configuration.visual.margin.x,
+                ry: Configuration.visual.margin.y,
+                "data-span-id": span.id,
+                "data-fragment-id": span.segmentedOffsetsMap[fragment.id],
+                strokeDashArray: span.attributeMerge.dashArray
+              });
+            });
+            // TODO:estension end - 08 - add token rect
+
 // BEGIN WEBANNO EXTENSION - WebAnno does not support marking normalizations
 /*
             // TODO XXX: quick nasty hack to allow normalizations
@@ -2503,10 +2522,13 @@ Util.profileStart('chunks');
               each(function(index, element) {
                   chunk.fragments[index].group = element;
               });
-            $(chunk.group).find("rect[data-span-id]").
-              each(function(index, element) {
-                  chunk.fragments[index].rect = element;
-              });
+            // TODO:extension start - 02 - remove fragment rect
+            // comment code
+            // $(chunk.group).find("rect[data-span-id]").
+            //   each(function(index, element) {
+            //       chunk.fragments[index].rect = element;
+            //   });
+            // TODO:extension end - 02 - remove fragment rect
           }
 
           // break the text highlights when the row breaks
