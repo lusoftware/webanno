@@ -1253,7 +1253,10 @@ var Visualizer = (function($, window, undefined) {
             return;
           }
         }); // markedText
-
+        // TODO:extension begin - debug - formatted data
+        console.debug("formatted data", data);
+        window.data = data;
+        // TODO:extension end - debug - formatted data
         dispatcher.post('dataReady', [data]);
       };
 
