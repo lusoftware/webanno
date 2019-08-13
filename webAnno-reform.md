@@ -19,7 +19,8 @@
             修复同一文字下的fragment curly只渲染一次 11 Modify overlap algorithm
 
         - 修改标注重叠算法 11 Modify overlap algorithm
-        - 修改跨行算法
+        - 修改跨行算法 
+            - 增加token curly 15 
 
         - 增加标注类型切换 12 add class select
         - 增加标注批注 13 add approve select

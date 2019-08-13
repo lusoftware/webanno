@@ -1452,225 +1452,227 @@ var Visualizer = (function($, window, undefined) {
         // here we also need all the spans that are contained in
         // chunks with this text, because we need to know the position
         // of the span text within the respective chunk text
-        chunkText.push.apply(chunkText, chunk.fragments);
+        // TODO:extension begin - 14 - add token curly
+        chunkText.push(chunk);
         // and also the markedText boundaries
-        chunkText.push.apply(chunkText, chunk.markedTextStart);
-        chunkText.push.apply(chunkText, chunk.markedTextEnd);
+        // chunkText.push.apply(chunkText, chunk.markedTextStart);
+        // chunkText.push.apply(chunkText, chunk.markedTextEnd);
+        // TODO:extension end - 14 - add token curly
       });
-      var textSizes = getTextMeasurements(chunkTexts, undefined, function(fragment, text) {
-        var chunk = fragment.chunk;
-        if (chunk && !chunk.tokens[0].curly) {
-          chunk.tokens.forEach(token => {
-            getTokenMeasurements(chunk, token, text);
-          });
-        }
-        if (fragment instanceof Fragment) {
-          // it's a fragment!
-          // measure the fragment text position in pixels
-          var firstChar = fragment.from - fragment.chunk.from;
-          if (firstChar < 0) {
-            firstChar = 0;
-            dispatcher.post("messages", [
-              [
+      // TODO:extension begin - 14 - add token curly
+      var textSizes = getTextMeasurements(chunkTexts, undefined, function(chunk, text) {
+        chunk.tokens.forEach(token => {
+          getTokenMeasurements(chunk, token, text);
+        });
+        chunk.fragments.forEach(function(fragment){
+          if (fragment instanceof Fragment) {
+            // it's a fragment!
+            // measure the fragment text position in pixels
+            var firstChar = fragment.from - chunk.from;
+            if (firstChar < 0) {
+              firstChar = 0;
+              dispatcher.post("messages", [
                 [
-                  "<strong>WARNING</strong>" +
-                    "<br/> " +
-                    "The fragment [" +
-                    fragment.from +
-                    ", " +
-                    fragment.to +
-                    "] (" +
-                    fragment.text +
-                    ") is not " +
-                    "contained in its designated chunk [" +
-                    fragment.chunk.from +
-                    ", " +
-                    fragment.chunk.to +
-                    "] most likely " +
-                    "due to the fragment starting or ending with a space, please " +
-                    "verify the sanity of your data since we are unable to " +
-                    "visualise this fragment correctly and will drop leading " +
-                    "space characters",
-                  "warning",
-                  15
+                  [
+                    "<strong>WARNING</strong>" +
+                      "<br/> " +
+                      "The fragment [" +
+                      fragment.from +
+                      ", " +
+                      fragment.to +
+                      "] (" +
+                      fragment.text +
+                      ") is not " +
+                      "contained in its designated chunk [" +
+                      chunk.from +
+                      ", " +
+                      chunk.to +
+                      "] most likely " +
+                      "due to the fragment starting or ending with a space, please " +
+                      "verify the sanity of your data since we are unable to " +
+                      "visualise this fragment correctly and will drop leading " +
+                      "space characters",
+                    "warning",
+                    15
+                  ]
                 ]
-              ]
-            ]);
-          }
-          var lastChar = fragment.to - fragment.chunk.from - 1;
-
-          // Adjust for XML whitespace (#832, #1009)
-          var textUpToFirstChar = fragment.chunk.text.substring(0, firstChar);
-          var textUpToLastChar = fragment.chunk.text.substring(0, lastChar);
-          var textUpToFirstCharUnspaced = textUpToFirstChar.replace(/\s\s+/g, " ");
-          var textUpToLastCharUnspaced = textUpToLastChar.replace(/\s\s+/g, " ");
-          firstChar -= textUpToFirstChar.length - textUpToFirstCharUnspaced.length;
-          lastChar -= textUpToLastChar.length - textUpToLastCharUnspaced.length;
-
-          // BEGIN WEBANNO EXTENSION - RTL support
-          // - #265 rendering with quotation marks
-          // - #278 Sub-token annotation of LTR text in RTL mode
-          if (rtlmode) {
-            // This rendering is much slower than the "old" version that brat uses, but it
-            // is more reliable in RTL mode.
-            var charDirection = null;
-            var charAttrs = null;
-            var corrFactor = 1;
-
-            if ("rtlsizes" in fragment.chunk) {
-              // Use cached metrics
-              charDirection = fragment.chunk.rtlsizes.charDirection;
-              charAttrs = fragment.chunk.rtlsizes.charAttrs;
-              corrFactor = fragment.chunk.rtlsizes.corrFactor;
-            } else {
-              // Calculate metrics
-              var start = new Date();
-
-              charDirection = [];
-              charAttrs = [];
-
-              // WebAnno #307 Cannot use fragment.chunk.text.length here because invisible
-              // characters do not count. Using text.getNumberOfChars() instead.
-              //var step1Start = new Date();
-              for (var idx = 0; idx < text.getNumberOfChars(); idx++) {
-                var cw = text.getEndPositionOfChar(idx).x - text.getStartPositionOfChar(idx).x;
-                var dir = isRTL(text.textContent.charCodeAt(idx)) ? "rtl" : "ltr";
-                charAttrs.push({
-                  order: idx,
-                  width: Math.abs(cw),
-                  direction: dir
-                });
-                charDirection.push(dir);
-                //		            	  console.log("char " +  idx + " [" + text.textContent[idx] + "] " +
-                //		            	  		"begin:" + text.getStartPositionOfChar(idx).x +
-                //		            	  		" end:" + text.getEndPositionOfChar(idx).x +
-                //		            	  		" width:" + Math.abs(cw) +
-                //		            	  		" dir:" + charDirection[charDirection.length-1]);
-              }
-              //console.log("Collected widths in " + (new Date() - step1Start));
-
-              // Re-order widths if necessary
-              //var step2Start = new Date();
-              if (charAttrs.length > 1) {
-                var idx = 0;
-                var blockBegin = idx;
-                var blockEnd = idx;
-
-                // Figure out next block
-                while (blockEnd < charAttrs.length) {
-                  while (charDirection[blockBegin] == charDirection[blockEnd]) {
-                    blockEnd++;
-                  }
-
-                  if (charDirection[blockBegin] == (rtlmode ? "ltr" : "rtl")) {
-                    charAttrs = charAttrs
-                      .slice(0, blockBegin)
-                      .concat(charAttrs.slice(blockBegin, blockEnd).reverse())
-                      .concat(charAttrs.slice(blockEnd));
-                  }
-
-                  blockBegin = blockEnd;
+              ]);
+            }
+            var lastChar = fragment.to - chunk.from - 1;
+  
+            // Adjust for XML whitespace (#832, #1009)
+            var textUpToFirstChar = chunk.text.substring(0, firstChar);
+            var textUpToLastChar = chunk.text.substring(0, lastChar);
+            var textUpToFirstCharUnspaced = textUpToFirstChar.replace(/\s\s+/g, " ");
+            var textUpToLastCharUnspaced = textUpToLastChar.replace(/\s\s+/g, " ");
+            firstChar -= textUpToFirstChar.length - textUpToFirstCharUnspaced.length;
+            lastChar -= textUpToLastChar.length - textUpToLastCharUnspaced.length;
+  
+            // BEGIN WEBANNO EXTENSION - RTL support
+            // - #265 rendering with quotation marks
+            // - #278 Sub-token annotation of LTR text in RTL mode
+            if (rtlmode) {
+              // This rendering is much slower than the "old" version that brat uses, but it
+              // is more reliable in RTL mode.
+              var charDirection = null;
+              var charAttrs = null;
+              var corrFactor = 1;
+  
+              if ("rtlsizes" in chunk) {
+                // Use cached metrics
+                charDirection = chunk.rtlsizes.charDirection;
+                charAttrs = chunk.rtlsizes.charAttrs;
+                corrFactor = chunk.rtlsizes.corrFactor;
+              } else {
+                // Calculate metrics
+                var start = new Date();
+  
+                charDirection = [];
+                charAttrs = [];
+  
+                // WebAnno #307 Cannot use chunk.text.length here because invisible
+                // characters do not count. Using text.getNumberOfChars() instead.
+                //var step1Start = new Date();
+                for (var idx = 0; idx < text.getNumberOfChars(); idx++) {
+                  var cw = text.getEndPositionOfChar(idx).x - text.getStartPositionOfChar(idx).x;
+                  var dir = isRTL(text.textContent.charCodeAt(idx)) ? "rtl" : "ltr";
+                  charAttrs.push({
+                    order: idx,
+                    width: Math.abs(cw),
+                    direction: dir
+                  });
+                  charDirection.push(dir);
+                  //		            	  console.log("char " +  idx + " [" + text.textContent[idx] + "] " +
+                  //		            	  		"begin:" + text.getStartPositionOfChar(idx).x +
+                  //		            	  		" end:" + text.getEndPositionOfChar(idx).x +
+                  //		            	  		" width:" + Math.abs(cw) +
+                  //		            	  		" dir:" + charDirection[charDirection.length-1]);
                 }
+                //console.log("Collected widths in " + (new Date() - step1Start));
+  
+                // Re-order widths if necessary
+                //var step2Start = new Date();
+                if (charAttrs.length > 1) {
+                  var idx = 0;
+                  var blockBegin = idx;
+                  var blockEnd = idx;
+  
+                  // Figure out next block
+                  while (blockEnd < charAttrs.length) {
+                    while (charDirection[blockBegin] == charDirection[blockEnd]) {
+                      blockEnd++;
+                    }
+  
+                    if (charDirection[blockBegin] == (rtlmode ? "ltr" : "rtl")) {
+                      charAttrs = charAttrs
+                        .slice(0, blockBegin)
+                        .concat(charAttrs.slice(blockBegin, blockEnd).reverse())
+                        .concat(charAttrs.slice(blockEnd));
+                    }
+  
+                    blockBegin = blockEnd;
+                  }
+                }
+                //	          console.log("order: " + charOrder);
+                //console.log("Established character order in " + (new Date() - step2Start));
+  
+                //var step3Start = new Date();
+                // The actual character width on screen is not necessarily the width that can be
+                // obtained by subtracting start from end position. In particular Arabic connects
+                // characters quite a bit such that the width on screen may be less. Here we
+                // try to compensate for this using a correction factor.
+                var widthsSum = 0;
+                for (var idx = 0; idx < charAttrs.length; idx++) {
+                  widthsSum += charAttrs[idx].width;
+                }
+                corrFactor = text.getComputedTextLength() / widthsSum;
+                //console.log("Final calculations in " + (new Date() - step3Start));
+  
+                //	          	  console.log("width sums: " + widthsSum);
+                //	          	  console.log("computed length: " + text.getComputedTextLength());
+                //	          	  console.log("corrFactor: " + corrFactor);
+  
+                chunk.rtlsizes = {
+                  charDirection: charDirection,
+                  charAttrs: charAttrs,
+                  corrFactor: corrFactor
+                };
+  
+                //console.log("Completed calculating static RTL metrics in " + (new Date() -
+                //		  start) + " for " + text.getNumberOfChars() + " characters.");
               }
-              //	          console.log("order: " + charOrder);
-              //console.log("Established character order in " + (new Date() - step2Start));
-
-              //var step3Start = new Date();
-              // The actual character width on screen is not necessarily the width that can be
-              // obtained by subtracting start from end position. In particular Arabic connects
-              // characters quite a bit such that the width on screen may be less. Here we
-              // try to compensate for this using a correction factor.
-              var widthsSum = 0;
-              for (var idx = 0; idx < charAttrs.length; idx++) {
-                widthsSum += charAttrs[idx].width;
+  
+              //startPos = Math.min(0, Math.min(text.getStartPositionOfChar(charOrder[0]).x, text.getEndPositionOfChar(charOrder[0]).x));
+              var startPos = 0;
+              //	           	  console.log("startPos[initial]: " + startPos);
+              for (var i = 0; charAttrs[i].order != firstChar && i < charAttrs.length; i++) {
+                startPos += charAttrs[i].width;
+                //	            	  console.log("startPos["+i+"]  "+text.textContent[charOrder[i]]+" width "+charWidths[i]+" : " + startPos);
               }
-              corrFactor = text.getComputedTextLength() / widthsSum;
-              //console.log("Final calculations in " + (new Date() - step3Start));
-
-              //	          	  console.log("width sums: " + widthsSum);
-              //	          	  console.log("computed length: " + text.getComputedTextLength());
-              //	          	  console.log("corrFactor: " + corrFactor);
-
-              fragment.chunk.rtlsizes = {
-                charDirection: charDirection,
-                charAttrs: charAttrs,
-                corrFactor: corrFactor
-              };
-
-              //console.log("Completed calculating static RTL metrics in " + (new Date() -
-              //		  start) + " for " + text.getNumberOfChars() + " characters.");
-            }
-
-            //startPos = Math.min(0, Math.min(text.getStartPositionOfChar(charOrder[0]).x, text.getEndPositionOfChar(charOrder[0]).x));
-            var startPos = 0;
-            //	           	  console.log("startPos[initial]: " + startPos);
-            for (var i = 0; charAttrs[i].order != firstChar && i < charAttrs.length; i++) {
-              startPos += charAttrs[i].width;
-              //	            	  console.log("startPos["+i+"]  "+text.textContent[charOrder[i]]+" width "+charWidths[i]+" : " + startPos);
-            }
-            if (charDirection[i] == (rtlmode ? "ltr" : "rtl")) {
-              startPos += charAttrs[i].width;
-              //	            	  console.log("startPos["+i+"]  "+text.textContent[charOrder[i]]+" width "+charWidths[i]+" : " + startPos);
-            }
-            startPos = startPos * corrFactor;
-            //	        	  console.log("startPos: " + startPos);
-
-            //endPos = Math.min(0, Math.min(text.getStartPositionOfChar(charOrder[0]).x, text.getEndPositionOfChar(charOrder[0]).x));
-            var endPos = 0;
-            //	           	  console.log("endPos[initial]: " + endPos);
-            for (var i = 0; charAttrs[i].order != lastChar && i < charAttrs.length; i++) {
-              endPos += charAttrs[i].width;
-              //	            	  console.log("endPos["+i+"]  "+text.textContent[charOrder[i]]+" width "+charWidths[i]+" : " + endPos);
-            }
-            if (charDirection[i] == (rtlmode ? "rtl" : "ltr")) {
-              //	            	  console.log("endPos["+i+"]  "+text.textContent[charOrder[i]]+" width "+charWidths[i]+" : " + endPos);
-              endPos += charAttrs[i].width;
-            }
-            endPos = endPos * corrFactor;
-            //	        	  console.log("endPos: " + endPos);
-          } else {
-            // Using the old faster method in LTR mode. YES, this means that subtoken
-            // annotations of RTL tokens in LTR mode will render incorrectly. If somebody
-            // needs that, we should do a smarter selection of the rendering mode.
-            // This is the old measurement code which doesn't work properly because browsers
-            // treat the x coordinate very differently. Our width-based measurement is more
-            // reliable.
-            // WebAnno #307 Cannot use fragment.chunk.text.length here because invisible
-            // characters do not count. Using text.getNumberOfChars() instead.
-            if (firstChar < text.getNumberOfChars()) {
-              startPos = text.getStartPositionOfChar(firstChar).x;
+              if (charDirection[i] == (rtlmode ? "ltr" : "rtl")) {
+                startPos += charAttrs[i].width;
+                //	            	  console.log("startPos["+i+"]  "+text.textContent[charOrder[i]]+" width "+charWidths[i]+" : " + startPos);
+              }
+              startPos = startPos * corrFactor;
+              //	        	  console.log("startPos: " + startPos);
+  
+              //endPos = Math.min(0, Math.min(text.getStartPositionOfChar(charOrder[0]).x, text.getEndPositionOfChar(charOrder[0]).x));
+              var endPos = 0;
+              //	           	  console.log("endPos[initial]: " + endPos);
+              for (var i = 0; charAttrs[i].order != lastChar && i < charAttrs.length; i++) {
+                endPos += charAttrs[i].width;
+                //	            	  console.log("endPos["+i+"]  "+text.textContent[charOrder[i]]+" width "+charWidths[i]+" : " + endPos);
+              }
+              if (charDirection[i] == (rtlmode ? "rtl" : "ltr")) {
+                //	            	  console.log("endPos["+i+"]  "+text.textContent[charOrder[i]]+" width "+charWidths[i]+" : " + endPos);
+                endPos += charAttrs[i].width;
+              }
+              endPos = endPos * corrFactor;
+              //	        	  console.log("endPos: " + endPos);
             } else {
-              startPos = text.getComputedTextLength();
+              // Using the old faster method in LTR mode. YES, this means that subtoken
+              // annotations of RTL tokens in LTR mode will render incorrectly. If somebody
+              // needs that, we should do a smarter selection of the rendering mode.
+              // This is the old measurement code which doesn't work properly because browsers
+              // treat the x coordinate very differently. Our width-based measurement is more
+              // reliable.
+              // WebAnno #307 Cannot use chunk.text.length here because invisible
+              // characters do not count. Using text.getNumberOfChars() instead.
+              if (firstChar < text.getNumberOfChars()) {
+                startPos = text.getStartPositionOfChar(firstChar).x;
+              } else {
+                startPos = text.getComputedTextLength();
+              }
+              endPos = lastChar < firstChar ? startPos : text.getEndPositionOfChar(lastChar).x;
             }
-            endPos = lastChar < firstChar ? startPos : text.getEndPositionOfChar(lastChar).x;
-          }
-          // END WEBANNO EXTENSION - RTL support - #265 rendering with quotation marks
-
-          // WEBANNO EXTENSION BEGIN - RTL support - Curlies coordinates
-          // In RTL mode, positions are negative (left to right)
-          if (rtlmode) {
-            startPos = -startPos;
-            endPos = -endPos;
-          }
-
-          // Make sure that startpos and endpos are properly ordered on the X axis
-          fragment.curly = {
-            from: Math.min(startPos, endPos),
-            to: Math.max(startPos, endPos)
-          };
-          // WEBANNO EXTENSION END
-        } else {
-          // it's markedText [id, start?, char#, offset]
-          if (fragment[2] < 0) fragment[2] = 0;
-          if (!fragment[2]) {
-            // start
-            fragment[3] = text.getStartPositionOfChar(fragment[2]).x;
+            // END WEBANNO EXTENSION - RTL support - #265 rendering with quotation marks
+  
+            // WEBANNO EXTENSION BEGIN - RTL support - Curlies coordinates
+            // In RTL mode, positions are negative (left to right)
+            if (rtlmode) {
+              startPos = -startPos;
+              endPos = -endPos;
+            }
+  
+            // Make sure that startpos and endpos are properly ordered on the X axis
+            fragment.curly = {
+              from: Math.min(startPos, endPos),
+              to: Math.max(startPos, endPos)
+            };
+            // WEBANNO EXTENSION END
           } else {
-            fragment[3] = text.getEndPositionOfChar(fragment[2] - 1).x + 1;
+            // it's markedText [id, start?, char#, offset]
+            if (fragment[2] < 0) fragment[2] = 0;
+            if (!fragment[2]) {
+              // start
+              fragment[3] = text.getStartPositionOfChar(fragment[2]).x;
+            } else {
+              fragment[3] = text.getEndPositionOfChar(fragment[2] - 1).x + 1;
+            }
           }
-        }
+        });
       });
-
+      // TODO:extension end - 14 - add token curly
       // get the fragment annotation text sizes
       var fragmentTexts = {};
       var noSpans = true;
