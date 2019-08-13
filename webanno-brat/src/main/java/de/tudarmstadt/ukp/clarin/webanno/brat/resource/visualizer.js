@@ -1434,9 +1434,12 @@ var Visualizer = (function($, window, undefined) {
         startPos = -startPos;
         endPos = -endPos;
       }
+      var from = Math.min(startPos, endPos);
+      var to = Math.max(startPos, endPos);
       token.curly = {
-        from: Math.min(startPos, endPos),
-        to: Math.max(startPos, endPos)
+        from,
+        to,
+        width: to - from
       };
     };
     // TODO:extension end - 06 - evaluate token position
@@ -1464,7 +1467,7 @@ var Visualizer = (function($, window, undefined) {
         chunk.tokens.forEach(token => {
           getTokenMeasurements(chunk, token, text);
         });
-        chunk.fragments.forEach(function(fragment){
+        chunk.fragments.forEach(function(fragment) {
           if (fragment instanceof Fragment) {
             // it's a fragment!
             // measure the fragment text position in pixels
@@ -1499,7 +1502,7 @@ var Visualizer = (function($, window, undefined) {
               ]);
             }
             var lastChar = fragment.to - chunk.from - 1;
-  
+
             // Adjust for XML whitespace (#832, #1009)
             var textUpToFirstChar = chunk.text.substring(0, firstChar);
             var textUpToLastChar = chunk.text.substring(0, lastChar);
@@ -1507,7 +1510,7 @@ var Visualizer = (function($, window, undefined) {
             var textUpToLastCharUnspaced = textUpToLastChar.replace(/\s\s+/g, " ");
             firstChar -= textUpToFirstChar.length - textUpToFirstCharUnspaced.length;
             lastChar -= textUpToLastChar.length - textUpToLastCharUnspaced.length;
-  
+
             // BEGIN WEBANNO EXTENSION - RTL support
             // - #265 rendering with quotation marks
             // - #278 Sub-token annotation of LTR text in RTL mode
@@ -1517,7 +1520,7 @@ var Visualizer = (function($, window, undefined) {
               var charDirection = null;
               var charAttrs = null;
               var corrFactor = 1;
-  
+
               if ("rtlsizes" in chunk) {
                 // Use cached metrics
                 charDirection = chunk.rtlsizes.charDirection;
@@ -1526,10 +1529,10 @@ var Visualizer = (function($, window, undefined) {
               } else {
                 // Calculate metrics
                 var start = new Date();
-  
+
                 charDirection = [];
                 charAttrs = [];
-  
+
                 // WebAnno #307 Cannot use chunk.text.length here because invisible
                 // characters do not count. Using text.getNumberOfChars() instead.
                 //var step1Start = new Date();
@@ -1549,33 +1552,33 @@ var Visualizer = (function($, window, undefined) {
                   //		            	  		" dir:" + charDirection[charDirection.length-1]);
                 }
                 //console.log("Collected widths in " + (new Date() - step1Start));
-  
+
                 // Re-order widths if necessary
                 //var step2Start = new Date();
                 if (charAttrs.length > 1) {
                   var idx = 0;
                   var blockBegin = idx;
                   var blockEnd = idx;
-  
+
                   // Figure out next block
                   while (blockEnd < charAttrs.length) {
                     while (charDirection[blockBegin] == charDirection[blockEnd]) {
                       blockEnd++;
                     }
-  
+
                     if (charDirection[blockBegin] == (rtlmode ? "ltr" : "rtl")) {
                       charAttrs = charAttrs
                         .slice(0, blockBegin)
                         .concat(charAttrs.slice(blockBegin, blockEnd).reverse())
                         .concat(charAttrs.slice(blockEnd));
                     }
-  
+
                     blockBegin = blockEnd;
                   }
                 }
                 //	          console.log("order: " + charOrder);
                 //console.log("Established character order in " + (new Date() - step2Start));
-  
+
                 //var step3Start = new Date();
                 // The actual character width on screen is not necessarily the width that can be
                 // obtained by subtracting start from end position. In particular Arabic connects
@@ -1587,21 +1590,21 @@ var Visualizer = (function($, window, undefined) {
                 }
                 corrFactor = text.getComputedTextLength() / widthsSum;
                 //console.log("Final calculations in " + (new Date() - step3Start));
-  
+
                 //	          	  console.log("width sums: " + widthsSum);
                 //	          	  console.log("computed length: " + text.getComputedTextLength());
                 //	          	  console.log("corrFactor: " + corrFactor);
-  
+
                 chunk.rtlsizes = {
                   charDirection: charDirection,
                   charAttrs: charAttrs,
                   corrFactor: corrFactor
                 };
-  
+
                 //console.log("Completed calculating static RTL metrics in " + (new Date() -
                 //		  start) + " for " + text.getNumberOfChars() + " characters.");
               }
-  
+
               //startPos = Math.min(0, Math.min(text.getStartPositionOfChar(charOrder[0]).x, text.getEndPositionOfChar(charOrder[0]).x));
               var startPos = 0;
               //	           	  console.log("startPos[initial]: " + startPos);
@@ -1615,7 +1618,7 @@ var Visualizer = (function($, window, undefined) {
               }
               startPos = startPos * corrFactor;
               //	        	  console.log("startPos: " + startPos);
-  
+
               //endPos = Math.min(0, Math.min(text.getStartPositionOfChar(charOrder[0]).x, text.getEndPositionOfChar(charOrder[0]).x));
               var endPos = 0;
               //	           	  console.log("endPos[initial]: " + endPos);
@@ -1646,14 +1649,14 @@ var Visualizer = (function($, window, undefined) {
               endPos = lastChar < firstChar ? startPos : text.getEndPositionOfChar(lastChar).x;
             }
             // END WEBANNO EXTENSION - RTL support - #265 rendering with quotation marks
-  
+
             // WEBANNO EXTENSION BEGIN - RTL support - Curlies coordinates
             // In RTL mode, positions are negative (left to right)
             if (rtlmode) {
               startPos = -startPos;
               endPos = -endPos;
             }
-  
+
             // Make sure that startpos and endpos are properly ordered on the X axis
             fragment.curly = {
               from: Math.min(startPos, endPos),
@@ -1895,6 +1898,9 @@ var Visualizer = (function($, window, undefined) {
       row.sentence = sentenceNumber;
       row.backgroundIndex = sentenceToggle;
       row.index = 0;
+      // TODO:extension begin - 15 - evaluate row by token width
+      row.tokens = [];
+      // TODO:extension end - 15 - evaluate row by token width
       var rowIndex = 0;
       var twoBarWidths; // HACK to avoid measuring space's width
       var openTextHighlights = {};
@@ -2543,58 +2549,63 @@ var Visualizer = (function($, window, undefined) {
           hasAnnotations = true;
         }); // fragments
 
-        // positioning of the chunk
-        chunk.right = chunkTo;
-        var textWidth = sizes.texts.widths[chunk.text];
-        chunkHeight += sizes.texts.height;
-        // WEBANNO EXTENSION BEGIN - RTL support - [boxX] adjustment for decoration
-        /*
+        // TODO:extension begin - 15 - evaluate row by token width
+        chunk.tokens.forEach(function(token) {
+          // positioning of the chunk
+          chunk.right = chunkTo;
+          // TODO:extension begin - 15 - evaluate row by token width
+          // var textWidth = sizes.texts.widths[chunk.text];
+          var textWidth = token.width;
+          // TODO:extension end - 15 - evaluate row by token width
+          chunkHeight += sizes.texts.height;
+          // WEBANNO EXTENSION BEGIN - RTL support - [boxX] adjustment for decoration
+          /*
           // If chunkFrom becomes negative, then boxX becomes positive
           var boxX = -Math.min(chunkFrom, 0);
 */
-        // If chunkFrom becomes negative (LTR) or chunkTo becomes positive (RTL), then boxX becomes positive
-        var boxX = rtlmode ? chunkTo : -Math.min(chunkFrom, 0);
-        // WEBANNO EXTENSION END
-        // WEBANNO EXTENSION BEGIN - RTL support - [boxWidth] calculation of boxWidth
-        /*
+          // If chunkFrom becomes negative (LTR) or chunkTo becomes positive (RTL), then boxX becomes positive
+          var boxX = rtlmode ? chunkTo : -Math.min(chunkFrom, 0);
+          // WEBANNO EXTENSION END
+          // WEBANNO EXTENSION BEGIN - RTL support - [boxWidth] calculation of boxWidth
+          /*
           var boxWidth =
               Math.max(textWidth, chunkTo) -
               Math.min(0, chunkFrom);
 */
-        var boxWidth;
-        if (rtlmode) {
-          boxWidth = Math.max(textWidth, -chunkFrom) - Math.min(0, -chunkTo);
-        } else {
-          boxWidth = Math.max(textWidth, chunkTo) - Math.min(0, chunkFrom);
-        }
-        // WEBANNO EXTENSION END
-        // if (hasLeftArcs) {
-        // TODO change this with smallestLeftArc
-        // var spacing = arcHorizontalSpacing - (currentX - lastArcBorder);
-        // arc too small?
-        // WEBANNO EXTENSION BEGIN - RTL support - [currentX] adjustment for spacing (arcs)
-        /*
+          var boxWidth;
+          if (rtlmode) {
+            boxWidth = Math.max(textWidth, -chunkFrom) - Math.min(0, -chunkTo);
+          } else {
+            boxWidth = Math.max(textWidth, chunkTo) - Math.min(0, chunkFrom);
+          }
+          // WEBANNO EXTENSION END
+          // if (hasLeftArcs) {
+          // TODO change this with smallestLeftArc
+          // var spacing = arcHorizontalSpacing - (currentX - lastArcBorder);
+          // arc too small?
+          // WEBANNO EXTENSION BEGIN - RTL support - [currentX] adjustment for spacing (arcs)
+          /*
           if (spacing > 0) currentX += spacing;
 */
-        if (spacing > 0) {
-          currentX += rtlmode ? -spacing : spacing;
-        }
-        // WEBANNO EXTENSION END
-        // }
-        var rightBorderForArcs = hasRightArcs ? arcHorizontalSpacing : hasInternalArcs ? arcSlant : 0;
-        // WEBANNO EXTENSION BEGIN - RTL support - leftBorderForArcs
-        var leftBorderForArcs = hasLeftArcs ? arcHorizontalSpacing : hasInternalArcs ? arcSlant : 0;
-        // WEBANNO EXTENSION END
+          if (spacing > 0) {
+            currentX += rtlmode ? -spacing : spacing;
+          }
+          // WEBANNO EXTENSION END
+          // }
+          var rightBorderForArcs = hasRightArcs ? arcHorizontalSpacing : hasInternalArcs ? arcSlant : 0;
+          // WEBANNO EXTENSION BEGIN - RTL support - leftBorderForArcs
+          var leftBorderForArcs = hasLeftArcs ? arcHorizontalSpacing : hasInternalArcs ? arcSlant : 0;
+          // WEBANNO EXTENSION END
 
-        var lastX = currentX;
-        var lastRow = row;
+          var lastX = currentX;
+          var lastRow = row;
 
-        // Is there a sentence break at the current chunk (i.e. it is the first chunk in a new
-        // sentence) - if yes and the current sentence is not the same as the sentence to which
-        // the chunk belongs, then fill in additional rows
-        if (chunk.sentence) {
-          // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
-          /*
+          // Is there a sentence break at the current chunk (i.e. it is the first chunk in a new
+          // sentence) - if yes and the current sentence is not the same as the sentence to which
+          // the chunk belongs, then fill in additional rows
+          if (chunk.sentence) {
+            // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
+            /*
             while (sentenceNumber < chunk.sentence) {
               sentenceNumber++;
               row.arcs = svg.group(row.group, { 'class': 'arcs' });
@@ -2606,43 +2617,44 @@ var Visualizer = (function($, window, undefined) {
             }
             sentenceToggle = 1 - sentenceToggle;
 */
-          while (sentenceNumber < chunk.sentence - 1) {
-            sentenceNumber++;
-            row.arcs = svg.group(row.group, { class: "arcs" });
-            rows.push(row);
+            while (sentenceNumber < chunk.sentence - 1) {
+              sentenceNumber++;
+              row.arcs = svg.group(row.group, { class: "arcs" });
+              rows.push(row);
 
-            row = new Row(svg);
-            row.sentence = sentenceNumber;
-            sentenceToggle = 1 - sentenceToggle;
-            row.backgroundIndex = sentenceToggle;
-            row.index = ++rowIndex;
+              row = new Row(svg);
+              row.sentence = sentenceNumber;
+              sentenceToggle = 1 - sentenceToggle;
+              row.backgroundIndex = sentenceToggle;
+              row.index = ++rowIndex;
+            }
+            // Not changing row background color here anymore - we do this later now when the next
+            // row is added
+            // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
           }
-          // Not changing row background color here anymore - we do this later now when the next
-          // row is added
-          // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
-        }
 
-        // WEBANNO EXTENSION BEGIN - RTL support - soft-wrap long sentences
-        /*
+          // WEBANNO EXTENSION BEGIN - RTL support - soft-wrap long sentences
+          /*
           if (chunk.sentence ||
               currentX + boxWidth + rightBorderForArcs >= canvasWidth - 2 * Configuration.visual.margin.x) {
 */
-        var chunkDoesNotFit = false;
-        if (rtlmode) {
-          chunkDoesNotFit = currentX - boxWidth - leftBorderForArcs <= 2 * Configuration.visual.margin.x;
-        } else {
-          chunkDoesNotFit = currentX + boxWidth + rightBorderForArcs >= canvasWidth - 2 * Configuration.visual.margin.x;
-        }
+          var chunkDoesNotFit = false;
+          if (rtlmode) {
+            chunkDoesNotFit = currentX - boxWidth - leftBorderForArcs <= 2 * Configuration.visual.margin.x;
+          } else {
+            chunkDoesNotFit =
+              currentX + boxWidth + rightBorderForArcs >= canvasWidth - 2 * Configuration.visual.margin.x;
+          }
 
-        // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
-        if (chunk.sentence > sourceData.sentence_number_offset || chunkDoesNotFit) {
-          // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
-          // WEBANNO EXTENSION END
+          // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
+          if (chunk.sentence > sourceData.sentence_number_offset || chunkDoesNotFit) {
+            // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
+            // WEBANNO EXTENSION END
 
-          // the chunk does not fit
-          row.arcs = svg.group(row.group, { class: "arcs" });
-          // WEBANNO EXTENSION BEGIN - RTL support - [currentX] reset after soft-wrap
-          /*
+            // the chunk does not fit
+            row.arcs = svg.group(row.group, { class: "arcs" });
+            // WEBANNO EXTENSION BEGIN - RTL support - [currentX] reset after soft-wrap
+            /*
             // TODO: related to issue #571
             // replace arcHorizontalSpacing with a calculated value
             currentX = Configuration.visual.margin.x + sentNumMargin + rowPadding +
@@ -2650,185 +2662,197 @@ var Visualizer = (function($, window, undefined) {
                 spaceWidth;
 */
 
-          // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
-          var indent = 0;
-          if (chunk.lastSpace) {
-            var spaceLen = chunk.lastSpace.length || 0;
-            var spacePos;
-            if (chunk.sentence) {
-              // If this is line-initial spacing, fetch the sentence to which the chunk belongs
-              // so we can determine where it begins
-              var sentFrom = sourceData.sentence_offsets[chunk.sentence - sourceData.sentence_number_offset][0];
-              spacePos = spaceLen - (chunk.from - sentFrom);
-            } else {
-              spacePos = 0;
+            // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
+            var indent = 0;
+            if (chunk.lastSpace) {
+              var spaceLen = chunk.lastSpace.length || 0;
+              var spacePos;
+              if (chunk.sentence) {
+                // If this is line-initial spacing, fetch the sentence to which the chunk belongs
+                // so we can determine where it begins
+                var sentFrom = sourceData.sentence_offsets[chunk.sentence - sourceData.sentence_number_offset][0];
+                spacePos = spaceLen - (chunk.from - sentFrom);
+              } else {
+                spacePos = 0;
+              }
+              for (var i = spacePos; i < spaceLen; i++) {
+                indent += spaceWidths[chunk.lastSpace[i]] * (fontZoom / 100.0) || 0;
+              }
             }
-            for (var i = spacePos; i < spaceLen; i++) {
-              indent += spaceWidths[chunk.lastSpace[i]] * (fontZoom / 100.0) || 0;
-            }
-          }
 
-          if (rtlmode) {
-            currentX =
-              canvasWidth -
-              (Configuration.visual.margin.x +
-              sentNumMargin +
-              rowPadding +
-              (hasRightArcs ? arcHorizontalSpacing : hasInternalArcs ? arcSlant : 0) /* +
+            if (rtlmode) {
+              currentX =
+                canvasWidth -
+                (Configuration.visual.margin.x +
+                sentNumMargin +
+                rowPadding +
+                (hasRightArcs ? arcHorizontalSpacing : hasInternalArcs ? arcSlant : 0) /* +
 	              spaceWidth*/ -
-                indent);
-          } else {
-            currentX =
-              Configuration.visual.margin.x +
-              sentNumMargin +
-              rowPadding +
-              (hasLeftArcs ? arcHorizontalSpacing : hasInternalArcs ? arcSlant : 0) /*+
+                  indent);
+            } else {
+              currentX =
+                Configuration.visual.margin.x +
+                sentNumMargin +
+                rowPadding +
+                (hasLeftArcs ? arcHorizontalSpacing : hasInternalArcs ? arcSlant : 0) /*+
                 spaceWidth*/ +
-              indent;
-          }
-          // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
-          // WEBANNO EXTENSION END - RTL support - [currentX] reset after soft-wrap
-          if (hasLeftArcs) {
-            var adjustedCurTextWidth = sizes.texts.widths[chunk.text] + arcHorizontalSpacing;
-            if (adjustedCurTextWidth > maxTextWidth) {
-              maxTextWidth = adjustedCurTextWidth;
+                indent;
             }
-          }
-          if (spacingRowBreak > 0) {
-            // WEBANNO EXTENSION BEGIN - RTL support - [currentX] adjustment for spacingRowBreak (for arcs)
-            /*
+            // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
+            // WEBANNO EXTENSION END - RTL support - [currentX] reset after soft-wrap
+            if (hasLeftArcs) {
+              var adjustedCurTextWidth = sizes.texts.widths[chunk.text] + arcHorizontalSpacing;
+              if (adjustedCurTextWidth > maxTextWidth) {
+                maxTextWidth = adjustedCurTextWidth;
+              }
+            }
+            if (spacingRowBreak > 0) {
+              // WEBANNO EXTENSION BEGIN - RTL support - [currentX] adjustment for spacingRowBreak (for arcs)
+              /*
               currentX += spacingRowBreak;
 */
-            currentX += rtlmode ? -spacingRowBreak : spacingRowBreak;
-            // WEBANNO EXTENSION END
-            spacing = 0; // do not center intervening elements
+              currentX += rtlmode ? -spacingRowBreak : spacingRowBreak;
+              // WEBANNO EXTENSION END
+              spacing = 0; // do not center intervening elements
+            }
+
+            // new row
+            rows.push(row);
+
+            svg.remove(chunk.group);
+            row = new Row(svg);
+            // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
+            // Change row background color if a new sentence is starting
+            if (chunk.sentence) {
+              sentenceToggle = 1 - sentenceToggle;
+            }
+            // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
+            row.backgroundIndex = sentenceToggle;
+            row.index = ++rowIndex;
+            // TODO:extension begin - 15 - evaluate row by token width
+            row.tokens = [];
+            // TODO:extension end - 15 - evaluate row by token width
+            svg.add(row.group, chunk.group);
+            chunk.group = row.group.lastElementChild;
+            $(chunk.group)
+              .children("g[class='span']")
+              .each(function(index, element) {
+                chunk.fragments[index].group = element;
+              });
+            // TODO:extension start - 02 - remove fragment rect
+            // comment code
+            // $(chunk.group).find("rect[data-span-id]").
+            //   each(function(index, element) {
+            //       chunk.fragments[index].rect = element;
+            //   });
+            // TODO:extension end - 02 - remove fragment rect
           }
 
-          // new row
-          rows.push(row);
-
-          svg.remove(chunk.group);
-          row = new Row(svg);
-          // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
-          // Change row background color if a new sentence is starting
-          if (chunk.sentence) {
-            sentenceToggle = 1 - sentenceToggle;
-          }
-          // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
-          row.backgroundIndex = sentenceToggle;
-          row.index = ++rowIndex;
-          svg.add(row.group, chunk.group);
-          chunk.group = row.group.lastElementChild;
-          $(chunk.group)
-            .children("g[class='span']")
-            .each(function(index, element) {
-              chunk.fragments[index].group = element;
-            });
-          // TODO:extension start - 02 - remove fragment rect
-          // comment code
-          // $(chunk.group).find("rect[data-span-id]").
-          //   each(function(index, element) {
-          //       chunk.fragments[index].rect = element;
-          //   });
-          // TODO:extension end - 02 - remove fragment rect
-        }
-
-        // break the text highlights when the row breaks
-        if (row.index !== lastRow.index) {
-          $.each(openTextHighlights, function(textId, textDesc) {
-            if (textDesc[3] != lastX) {
-              // WEBANNO EXTENSION BEGIN - RTL support - breaking highlights (?)
-              /*
+          // break the text highlights when the row breaks
+          if (row.index !== lastRow.index) {
+            $.each(openTextHighlights, function(textId, textDesc) {
+              if (textDesc[3] != lastX) {
+                // WEBANNO EXTENSION BEGIN - RTL support - breaking highlights (?)
+                /*
                 var newDesc = [lastRow, textDesc[3], lastX + boxX, textDesc[4]];
 */
-              var newDesc;
-              if (rtlmode) {
-                newDesc = [lastRow, textDesc[3], lastX - boxX, textDesc[4]];
-              } else {
-                newDesc = [lastRow, textDesc[3], lastX + boxX, textDesc[4]];
+                var newDesc;
+                if (rtlmode) {
+                  newDesc = [lastRow, textDesc[3], lastX - boxX, textDesc[4]];
+                } else {
+                  newDesc = [lastRow, textDesc[3], lastX + boxX, textDesc[4]];
+                }
+                // WEBANNO EXTENSION END
+                textMarkedRows.push(newDesc);
               }
-              // WEBANNO EXTENSION END
-              textMarkedRows.push(newDesc);
-            }
-            textDesc[3] = currentX;
+              textDesc[3] = currentX;
+            });
+          }
+
+          // open text highlights
+          $.each(chunk.markedTextStart, function(textNo, textDesc) {
+            // WEBANNO EXTENSION BEGIN - RTL support - breaking highlights (?)
+            /*
+            textDesc[3] += currentX + boxX;
+*/
+            textDesc[3] += currentX + (rtlmode ? -boxX : boxX);
+            // WEBANNO EXTENSION END
+            openTextHighlights[textDesc[0]] = textDesc;
           });
-        }
 
-        // open text highlights
-        $.each(chunk.markedTextStart, function(textNo, textDesc) {
-          // WEBANNO EXTENSION BEGIN - RTL support - breaking highlights (?)
-          /*
+          // close text highlights
+          $.each(chunk.markedTextEnd, function(textNo, textDesc) {
+            // WEBANNO EXTENSION BEGIN - RTL support - breaking highlights (?)
+            /*
             textDesc[3] += currentX + boxX;
 */
-          textDesc[3] += currentX + (rtlmode ? -boxX : boxX);
-          // WEBANNO EXTENSION END
-          openTextHighlights[textDesc[0]] = textDesc;
-        });
+            textDesc[3] += currentX + (rtlmode ? -boxX : boxX);
+            // WEBANNO EXTENSION END
+            var startDesc = openTextHighlights[textDesc[0]];
+            delete openTextHighlights[textDesc[0]];
+            markedRow = [row, startDesc[3], textDesc[3], startDesc[4]];
+            textMarkedRows.push(markedRow);
+          });
 
-        // close text highlights
-        $.each(chunk.markedTextEnd, function(textNo, textDesc) {
-          // WEBANNO EXTENSION BEGIN - RTL support - breaking highlights (?)
+          // XXX check this - is it used? should it be lastRow?
+          if (hasAnnotations) row.hasAnnotations = true;
+
+          // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
           /*
-            textDesc[3] += currentX + boxX;
-*/
-          textDesc[3] += currentX + (rtlmode ? -boxX : boxX);
-          // WEBANNO EXTENSION END
-          var startDesc = openTextHighlights[textDesc[0]];
-          delete openTextHighlights[textDesc[0]];
-          markedRow = [row, startDesc[3], textDesc[3], startDesc[4]];
-          textMarkedRows.push(markedRow);
-        });
-
-        // XXX check this - is it used? should it be lastRow?
-        if (hasAnnotations) row.hasAnnotations = true;
-
-        // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
-        /*
           if (chunk.sentence) {
 */
 
-        if (chunk.sentence > sourceData.sentence_number_offset) {
-          // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
-          row.sentence = ++sentenceNumber;
-        }
+          if (chunk.sentence > sourceData.sentence_number_offset) {
+            // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
+            row.sentence = ++sentenceNumber;
+          }
 
-        if (spacing > 0) {
-          // if we added a gap, center the intervening elements
-          spacing /= 2;
-          var firstChunkInRow = row.chunks[row.chunks.length - 1];
-          if (firstChunkInRow === undefined) {
-            console.log("warning: firstChunkInRow undefined, chunk:", chunk);
-          } else {
-            // valid firstChunkInRow
-            if (spacingChunkId < firstChunkInRow.index) {
-              spacingChunkId = firstChunkInRow.index + 1;
-            }
-            for (var chunkIndex = spacingChunkId; chunkIndex < chunk.index; chunkIndex++) {
-              var movedChunk = data.chunks[chunkIndex];
-              translate(movedChunk, movedChunk.translation.x + spacing, 0);
-              movedChunk.textX += spacing;
+          if (spacing > 0) {
+            // if we added a gap, center the intervening elements
+            spacing /= 2;
+            var firstChunkInRow = row.chunks[row.chunks.length - 1];
+            if (firstChunkInRow === undefined) {
+              console.log("warning: firstChunkInRow undefined, chunk:", chunk);
+            } else {
+              // valid firstChunkInRow
+              if (spacingChunkId < firstChunkInRow.index) {
+                spacingChunkId = firstChunkInRow.index + 1;
+              }
+              for (var chunkIndex = spacingChunkId; chunkIndex < chunk.index; chunkIndex++) {
+                var movedChunk = data.chunks[chunkIndex];
+                translate(movedChunk, movedChunk.translation.x + spacing, 0);
+                movedChunk.textX += spacing;
+              }
             }
           }
-        }
 
-        row.chunks.push(chunk);
-        chunk.row = row;
-
-        // WEBANNO EXTENSION BEGIN - RTL support - chunk - translate position (based on currentX/boxX)
-        /*
+          // TODO:extension begin - 15 - evaluate row by token width
+          row.tokens.push(token);
+          token.row = row;
+          // TODO:extension end - 15 - evaluate row by token width
+          // WEBANNO EXTENSION BEGIN - RTL support - chunk - translate position (based on currentX/boxX)
+          /*
           translate(chunk, currentX + boxX, 0);
           chunk.textX = currentX + boxX;
 */
-        translate(chunk, currentX + (rtlmode ? -boxX : boxX), 0);
-        chunk.textX = currentX + (rtlmode ? -boxX : boxX);
-        // WEBANNO EXTENSION END
+          // TODO:extension begin - 15 - evaluate row by token width
+          // translate(chunk, currentX + (rtlmode ? -boxX : boxX), 0);
+          // chunk.textX = currentX + (rtlmode ? -boxX : boxX);
+          // TODO:extension enb - 15 - evaluate row by token width
+          // WEBANNO EXTENSION END
 
-        // WEBANNO EXTENSION BEGIN - RTL support - [currentX] adjustment for boxWidth (chunk)
-        /*
+          // WEBANNO EXTENSION BEGIN - RTL support - [currentX] adjustment for boxWidth (chunk)
+          /*
           currentX += boxWidth;
 */
-        currentX += rtlmode ? -boxWidth : boxWidth;
-        // WEBANNO EXTENSION END
+          currentX += rtlmode ? -boxWidth : boxWidth;
+          // WEBANNO EXTENSION END
+        });
+        translate(chunk, currentX, 0);
+        chunk.textX = currentX;
+        row.chunks.push(chunk);
+        chunk.row = row;
+        // TODO:extension end - 15 - evaluate row by token width
       }); // chunks
 
       // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
