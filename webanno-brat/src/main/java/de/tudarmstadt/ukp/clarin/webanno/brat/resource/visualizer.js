@@ -4105,32 +4105,57 @@ var Visualizer = (function($, window, undefined) {
                 };
   */
               // Store highlight coordinates
-              fragment.highlightPos = {
-                x: chunk.textX + (rtlmode ? fragment.curly.from - xShrink : fragment.curly.from + xShrink),
-                y: chunk.row.textY + sizes.texts.y + yShrink + yStartTweak,
-                w: fragment.curly.to - fragment.curly.from - 2 * xShrink,
-                h: sizes.texts.height - 2 * yShrink - yStartTweak
-              };
+              // TODO:extension begin - 19 - draw text highlight
+              fragment.tokens.forEach(function(token) {
+                token.highlightPos = {
+                  x: token.textX,
+                  y: token.row.textY + sizes.texts.y + yShrink + yStartTweak,
+                  w: token.curly.to - token.curly.from - 2 * xShrink,
+                  h: sizes.texts.height - 2 * yShrink - yStartTweak
+                };
+                if (token.highlightPos.w <= 0) {
+                  token.highlightPos.w = 1;
+                }
+                svg.rect(
+                  highlightGroup,
+                  token.highlightPos.x,
+                  token.highlightPos.y,
+                  token.highlightPos.w,
+                  token.highlightPos.h,
+                  {
+                    fill: lightBgColor, //opacity:1,
+                    rx: highlightRounding.x,
+                    ry: highlightRounding.y
+                  }
+                );
+              });
+              // fragment.highlightPos = {
+              //   x: chunk.textX + (rtlmode ? fragment.curly.from - xShrink : fragment.curly.from + xShrink),
+              //   y: chunk.row.textY + sizes.texts.y + yShrink + yStartTweak,
+              //   w: fragment.curly.to - fragment.curly.from - 2 * xShrink,
+              //   h: sizes.texts.height - 2 * yShrink - yStartTweak
+              // };
               // WEBANNO EXTENSION END
               // WEBANNO EXTENSION BEGIN - #361 Avoid rendering exception with zero-width spans
               // Avoid exception because width < 0 is not allowed
-              if (fragment.highlightPos.w <= 0) {
-                fragment.highlightPos.w = 1;
-              }
+              // if (fragment.highlightPos.w <= 0) {
+              //   fragment.highlightPos.w = 1;
+              // }
               // WEBANNO EXTENSION END - #361 Avoid rendering exception with zero-width spans
               // Render highlight
-              svg.rect(
-                highlightGroup,
-                fragment.highlightPos.x,
-                fragment.highlightPos.y,
-                fragment.highlightPos.w,
-                fragment.highlightPos.h,
-                {
-                  fill: lightBgColor, //opacity:1,
-                  rx: highlightRounding.x,
-                  ry: highlightRounding.y
-                }
-              );
+              // svg.rect(
+              //   highlightGroup,
+              //   fragment.highlightPos.x,
+              //   fragment.highlightPos.y,
+              //   fragment.highlightPos.w,
+              //   fragment.highlightPos.h,
+              //   {
+              //     fill: lightBgColor, //opacity:1,
+              //     rx: highlightRounding.x,
+              //     ry: highlightRounding.y
+              //   }
+              // );
+              // TODO:extension end - 19 - draw text highlight
             }
           }
           // TODO:extension end - 18 - draw token text
@@ -4517,16 +4542,20 @@ var Visualizer = (function($, window, undefined) {
 
         highlight = [];
         $.each(span.fragments, function(fragmentNo, fragment) {
-          highlight.push(
-            svg.rect(
-              highlightGroup,
-              fragment.highlightPos.x,
-              fragment.highlightPos.y,
-              fragment.highlightPos.w,
-              fragment.highlightPos.h,
-              { fill: bgColor, opacity: 0.75, rx: highlightRounding.x, ry: highlightRounding.y }
-            )
-          );
+          // TODO:extension begin - 19 - draw text highlight
+          fragment.tokens.forEach(function(token){
+            highlight.push(
+              svg.rect(
+                highlightGroup,
+                token.highlightPos.x,
+                token.highlightPos.y,
+                token.highlightPos.w,
+                token.highlightPos.h,
+                { fill: bgColor, opacity: 0.75, rx: highlightRounding.x, ry: highlightRounding.y }
+              )
+            );
+          });
+          // TODO:extension end - 19 - draw text highlight
         });
 
         if (that.arcDragOrigin) {
