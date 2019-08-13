@@ -2550,12 +2550,16 @@ var Visualizer = (function($, window, undefined) {
         }); // fragments
 
         // TODO:extension begin - 15 - evaluate row by token width
-        chunk.tokens.forEach(function(token) {
+        var firstX = currentX;
+        chunk.tokens.forEach(function(token, tokenNo) {
+          if(tokenNo===0){
+            firstX = currentX;
+          }
           // positioning of the chunk
           chunk.right = chunkTo;
           // TODO:extension begin - 15 - evaluate row by token width
           // var textWidth = sizes.texts.widths[chunk.text];
-          var textWidth = token.width;
+          var textWidth = token.curly.width;
           // TODO:extension end - 15 - evaluate row by token width
           chunkHeight += sizes.texts.height;
           // WEBANNO EXTENSION BEGIN - RTL support - [boxX] adjustment for decoration
@@ -2829,6 +2833,9 @@ var Visualizer = (function($, window, undefined) {
           // TODO:extension begin - 15 - evaluate row by token width
           row.tokens.push(token);
           token.row = row;
+          // TODO:extension begin - 17 - evaluate token X position
+          token.textX = currentX;
+          // TODO:extension end - 17 - evaluate token X position
           // TODO:extension end - 15 - evaluate row by token width
           // WEBANNO EXTENSION BEGIN - RTL support - chunk - translate position (based on currentX/boxX)
           /*
@@ -2844,11 +2851,19 @@ var Visualizer = (function($, window, undefined) {
           // WEBANNO EXTENSION BEGIN - RTL support - [currentX] adjustment for boxWidth (chunk)
           /*
           currentX += boxWidth;
-*/
+*/  
           currentX += rtlmode ? -boxWidth : boxWidth;
           // WEBANNO EXTENSION END
+          // TODO:extension begin - 17 - evaluate token X position
+          if (tokenNo < chunk.tokens.length - 1 && token.lastSpace) {
+            var spaceLen = token.lastSpace.length || 0;
+            for (let i = 0; i < spaceLen; i++) {
+              currentX += spaceWidths[token.lastSpace[i]] * (fontZoom / 100.0) || 0;
+            }
+          }
+          // TODO:extension end - 17 - evaluate token X position
         });
-        translate(chunk, currentX, 0);
+        translate(chunk, firstX, 0);
         chunk.textX = currentX;
         row.chunks.push(chunk);
         chunk.row = row;
