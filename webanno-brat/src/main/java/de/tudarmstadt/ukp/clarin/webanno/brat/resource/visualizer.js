@@ -2552,7 +2552,7 @@ var Visualizer = (function($, window, undefined) {
         // TODO:extension begin - 15 - evaluate row by token width
         var firstX = currentX;
         chunk.tokens.forEach(function(token, tokenNo) {
-          if(tokenNo===0){
+          if (tokenNo === 0) {
             firstX = currentX;
           }
           // positioning of the chunk
@@ -2580,7 +2580,8 @@ var Visualizer = (function($, window, undefined) {
           if (rtlmode) {
             boxWidth = Math.max(textWidth, -chunkFrom) - Math.min(0, -chunkTo);
           } else {
-            boxWidth = Math.max(textWidth, chunkTo) - Math.min(0, chunkFrom);
+            // boxWidth = Math.max(textWidth, chunkTo) - Math.min(0, chunkFrom);
+            boxWidth = textWidth;
           }
           // WEBANNO EXTENSION END
           // if (hasLeftArcs) {
@@ -2851,7 +2852,8 @@ var Visualizer = (function($, window, undefined) {
           // WEBANNO EXTENSION BEGIN - RTL support - [currentX] adjustment for boxWidth (chunk)
           /*
           currentX += boxWidth;
-*/  
+*/
+
           currentX += rtlmode ? -boxWidth : boxWidth;
           // WEBANNO EXTENSION END
           // TODO:extension begin - 17 - evaluate token X position
@@ -3870,6 +3872,9 @@ var Visualizer = (function($, window, undefined) {
 */
       var prevChunk = null;
       var rowTextGroup = null;
+      // TODO:extension begin - 18 - draw token text
+      var preToken = null;
+      // TODO:extension end - 18 - draw token text
       // END WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
       $.each(data.chunks, function(chunkNo, chunk) {
         // context for sort
@@ -3889,233 +3894,247 @@ var Visualizer = (function($, window, undefined) {
             sentenceText = svg.createText();
           }
 */
-        if (!rowTextGroup || prevChunk.row != chunk.row) {
-          if (rowTextGroup) {
-            horizontalSpacer(svg, rowTextGroup, 0, prevChunk.row.textY, 1, {
-              "data-chunk-id": prevChunk.index,
-              class: "row-final spacing"
-            });
-          }
-          rowTextGroup = svg.group(textGroup, { class: "text-row" });
-        }
-        prevChunk = chunk;
-        // END WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
 
-        var nextChunk = data.chunks[chunkNo + 1];
-        var nextSpace = nextChunk ? nextChunk.space : "";
-        // WEBANNO EXTENSION BEGIN - RTL support - Render chunks as SVG text
-        /*
-          sentenceText.span(chunk.text + nextSpace, {
-            x: chunk.textX,
-            y: chunk.row.textY,
-            'data-chunk-id': chunk.index
-          });
-*/
-        if (rtlmode) {
-          // Render every text chunk as a SVG text so we maintain control over the layout. When
-          // rendering as a SVG span (as brat does), then the browser changes the layout on the
-          // X-axis as it likes in RTL mode.
-          // BEGIN WEBANNO EXTENSION - #316 Text selection behavior while dragging mouse
-          // BEGIN WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
-          /*
-            svg.text(textGroup, chunk.textX, chunk.row.textY, chunk.text + nextSpace, {
-              'data-chunk-id': chunk.index
-            });
- */
-          if (!rowTextGroup.firstChild) {
-            horizontalSpacer(svg, rowTextGroup, 0, chunk.row.textY, 1, {
-              class: "row-initial spacing",
-              "data-chunk-id": chunk.index
-            });
+        // TODO:extension begin - 18 - draw token text
+        chunk.tokens.forEach(function(token, tokenNo) {
+          if (!rowTextGroup || preToken.row != token.row) {
+            if (rowTextGroup) {
+              horizontalSpacer(svg, rowTextGroup, 0, prevChunk.row.textY, 1, {
+                "data-chunk-id": prevChunk.index,
+                class: "row-final spacing"
+              });
+            }
+            rowTextGroup = svg.group(textGroup, { class: "text-row" });
           }
-
-          svg.text(rowTextGroup, chunk.textX, chunk.row.textY, chunk.text, {
-            "data-chunk-id": chunk.index
-          });
-
-          // If there needs to be space between this chunk and the next one, add a spacer
-          // item that stretches across the entire inter-chunk space. This ensures a
-          // smooth selection.
-          if (nextChunk) {
-            var spaceX = chunk.textX - sizes.texts.widths[chunk.text];
-            var spaceWidth = chunk.textX - sizes.texts.widths[chunk.text] - nextChunk.textX;
-            horizontalSpacer(svg, rowTextGroup, spaceX, chunk.row.textY, spaceWidth, {
-              "data-chunk-id": chunk.index
-            });
-          }
+          prevChunk = chunk;
+          preToken = token;
           // END WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
-          // END WEBANNO EXTENSION - #316 Text selection behavior while dragging mouse
-        } else {
-          // Original rendering using tspan in ltr mode as it play nicer with selection
-          // BEGIN WEBANNO EXTENSION - #316 Text selection behavior while dragging mouse
-          // BEGIN WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
+
+          var nextChunk = data.chunks[chunkNo + 1];
+          var nextSpace = nextChunk ? nextChunk.space : "";
+          var nextToken = null;
+          if (chunk.tokens[tokenNo + 1]) {
+            nextToken = chunk.tokens[tokenNo + 1];
+          } else if (nextChunk) {
+            nextToken = nextChunk.tokens[0];
+          }
+          // WEBANNO EXTENSION BEGIN - RTL support - Render chunks as SVG text
           /*
             sentenceText.span(chunk.text + nextSpace, {
               x: chunk.textX,
               y: chunk.row.textY,
-              'data-chunk-id': chunk.index});
- */
-          if (!rowTextGroup.firstChild) {
-            horizontalSpacer(svg, rowTextGroup, 0, chunk.row.textY, 1, {
-              class: "row-initial spacing",
-              "data-chunk-id": chunk.index
+              'data-chunk-id': chunk.index
             });
-          }
-
-          svg.text(rowTextGroup, chunk.textX, chunk.row.textY, chunk.text, {
-            "data-chunk-id": chunk.index
-          });
-
-          // If there needs to be space between this chunk and the next one, add a spacer
-          // item that stretches across the entire inter-chunk space. This ensures a
-          // smooth selection.
-          if (nextChunk) {
-            var spaceX = chunk.textX + sizes.texts.widths[chunk.text];
-            var spaceWidth = nextChunk.textX - spaceX;
-            horizontalSpacer(svg, rowTextGroup, spaceX, chunk.row.textY, spaceWidth, {
-              "data-chunk-id": chunk.index
-            });
-          }
-          // END WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
-          // END WEBANNO EXTENSION - #316 Text selection behavior while dragging mouse
-        }
-        // WEBANNO EXTENSION END
-
-        // chunk backgrounds
-        if (chunk.fragments.length) {
-          var orderedIdx = [];
-          for (var i = chunk.fragments.length - 1; i >= 0; i--) {
-            orderedIdx.push(i);
-          }
-
-          // Mark entity nesting height/depth (number of
-          // nested/nesting entities). To account for crossing
-          // brackets in a (mostly) reasonable way, determine
-          // depth/height separately in a left-to-right traversal
-          // and a right-to-left traversal.
-          orderedIdx.sort(lrChunkComp);
-
-          var openFragments = [];
-          for (var i = 0; i < orderedIdx.length; i++) {
-            var current = chunk.fragments[orderedIdx[i]];
-            current.nestingHeightLR = 0;
-            current.nestingDepthLR = 0;
-            var stillOpen = [];
-            for (var o = 0; o < openFragments.length; o++) {
-              if (openFragments[o].to > current.from) {
-                stillOpen.push(openFragments[o]);
-                openFragments[o].nestingHeightLR++;
-              }
-            }
-            openFragments = stillOpen;
-            current.nestingDepthLR = openFragments.length;
-            openFragments.push(current);
-          }
-
-          // re-sort for right-to-left traversal by end position
-          orderedIdx.sort(rlChunkComp);
-
-          openFragments = [];
-          for (var i = 0; i < orderedIdx.length; i++) {
-            var current = chunk.fragments[orderedIdx[i]];
-            current.nestingHeightRL = 0;
-            current.nestingDepthRL = 0;
-            var stillOpen = [];
-            for (var o = 0; o < openFragments.length; o++) {
-              if (openFragments[o].from < current.to) {
-                stillOpen.push(openFragments[o]);
-                openFragments[o].nestingHeightRL++;
-              }
-            }
-            openFragments = stillOpen;
-            current.nestingDepthRL = openFragments.length;
-            openFragments.push(current);
-          }
-
-          // the effective depth and height are the max of those
-          // for the left-to-right and right-to-left traversals.
-          for (var i = 0; i < orderedIdx.length; i++) {
-            var c = chunk.fragments[orderedIdx[i]];
-            c.nestingHeight = c.nestingHeightLR > c.nestingHeightRL ? c.nestingHeightLR : c.nestingHeightRL;
-            c.nestingDepth = c.nestingDepthLR > c.nestingDepthRL ? c.nestingDepthLR : c.nestingDepthRL;
-          }
-
-          // Re-order by nesting height and draw in order
-          orderedIdx.sort(function(a, b) {
-            return Util.cmp(chunk.fragments[b].nestingHeight, chunk.fragments[a].nestingHeight);
-          });
-
-          for (var i = 0; i < chunk.fragments.length; i++) {
-            var fragment = chunk.fragments[orderedIdx[i]];
-            var spanDesc = spanTypes[fragment.span.type];
-            var bgColor =
-              (spanDesc && spanDesc.bgColor) || (spanTypes.SPAN_DEFAULT && spanTypes.SPAN_DEFAULT.bgColor) || "#ffffff";
-            if (fragment.span.hidden) continue;
-
-            // WEBANNO EXTENSION BEGIN - #820 - Allow setting label/color individually
-            if (fragment.span.color) {
-              bgColor = fragment.span.color;
-            }
-            // WEBANNO EXTENSION END
-
-            // Tweak for nesting depth/height. Recognize just three
-            // levels for now: normal, nested, and nesting, where
-            // nested+nesting yields normal. (Currently testing
-            // minor tweak: don't shrink for depth 1 as the nesting
-            // highlight will grow anyway [check nestingDepth > 1])
-            var shrink = 0;
-            if (fragment.nestingDepth > 1 && fragment.nestingHeight == 0) {
-              shrink = 1;
-            } else if (fragment.nestingDepth == 0 && fragment.nestingHeight > 0) {
-              shrink = -1;
-            }
-            var yShrink = shrink * nestingAdjustYStepSize;
-            var xShrink = shrink * nestingAdjustXStepSize;
-            // bit lighter
-            var lightBgColor = Util.adjustColorLightness(bgColor, 0.8);
-            // tweak for Y start offset (and corresponding height
-            // reduction): text rarely hits font max height, so this
-            // tends to look better
-            var yStartTweak = 1;
-            // store to have same mouseover highlight without recalc
-            // WEBANNO EXTENSION BEGIN - RTL support - Highlight positions
+  */
+          if (rtlmode) {
+            // Render every text chunk as a SVG text so we maintain control over the layout. When
+            // rendering as a SVG span (as brat does), then the browser changes the layout on the
+            // X-axis as it likes in RTL mode.
+            // BEGIN WEBANNO EXTENSION - #316 Text selection behavior while dragging mouse
+            // BEGIN WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
             /*
-              fragment.highlightPos = {
-                  x: chunk.textX + fragment.curly.from + xShrink,
-                  y: chunk.row.textY + sizes.texts.y + yShrink + yStartTweak,
-                  w: fragment.curly.to - fragment.curly.from - 2*xShrink,
-                  h: sizes.texts.height - 2*yShrink - yStartTweak,
-              };
-*/
-            // Store highlight coordinates
-            fragment.highlightPos = {
-              x: chunk.textX + (rtlmode ? fragment.curly.from - xShrink : fragment.curly.from + xShrink),
-              y: chunk.row.textY + sizes.texts.y + yShrink + yStartTweak,
-              w: fragment.curly.to - fragment.curly.from - 2 * xShrink,
-              h: sizes.texts.height - 2 * yShrink - yStartTweak
-            };
-            // WEBANNO EXTENSION END
-            // WEBANNO EXTENSION BEGIN - #361 Avoid rendering exception with zero-width spans
-            // Avoid exception because width < 0 is not allowed
-            if (fragment.highlightPos.w <= 0) {
-              fragment.highlightPos.w = 1;
+              svg.text(textGroup, chunk.textX, chunk.row.textY, chunk.text + nextSpace, {
+                'data-chunk-id': chunk.index
+              });
+   */
+            if (!rowTextGroup.firstChild) {
+              horizontalSpacer(svg, rowTextGroup, 0, chunk.row.textY, 1, {
+                class: "row-initial spacing",
+                "data-chunk-id": chunk.index
+              });
             }
-            // WEBANNO EXTENSION END - #361 Avoid rendering exception with zero-width spans
-            // Render highlight
-            svg.rect(
-              highlightGroup,
-              fragment.highlightPos.x,
-              fragment.highlightPos.y,
-              fragment.highlightPos.w,
-              fragment.highlightPos.h,
-              {
-                fill: lightBgColor, //opacity:1,
-                rx: highlightRounding.x,
-                ry: highlightRounding.y
-              }
-            );
+
+            svg.text(rowTextGroup, chunk.textX, chunk.row.textY, chunk.text, {
+              "data-chunk-id": chunk.index
+            });
+
+            // If there needs to be space between this chunk and the next one, add a spacer
+            // item that stretches across the entire inter-chunk space. This ensures a
+            // smooth selection.
+            if (nextChunk) {
+              var spaceX = chunk.textX - sizes.texts.widths[chunk.text];
+              var spaceWidth = chunk.textX - sizes.texts.widths[chunk.text] - nextChunk.textX;
+              horizontalSpacer(svg, rowTextGroup, spaceX, chunk.row.textY, spaceWidth, {
+                "data-chunk-id": chunk.index
+              });
+            }
+            // END WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
+            // END WEBANNO EXTENSION - #316 Text selection behavior while dragging mouse
+          } else {
+            // Original rendering using tspan in ltr mode as it play nicer with selection
+            // BEGIN WEBANNO EXTENSION - #316 Text selection behavior while dragging mouse
+            // BEGIN WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
+            /*
+              sentenceText.span(chunk.text + nextSpace, {
+                x: chunk.textX,
+                y: chunk.row.textY,
+                'data-chunk-id': chunk.index});
+   */
+            if (!rowTextGroup.firstChild) {
+              horizontalSpacer(svg, rowTextGroup, 0, chunk.row.textY, 1, {
+                class: "row-initial spacing",
+                "data-chunk-id": chunk.index
+              });
+            }
+
+            svg.text(rowTextGroup, token.textX, token.row.textY, token.text, {
+              "data-chunk-id": chunk.index
+            });
+
+            // If there needs to be space between this chunk and the next one, add a spacer
+            // item that stretches across the entire inter-chunk space. This ensures a
+            // smooth selection.
+            if (nextToken) {
+              var spaceX = chunk.textX + token.curly.to - token.curly.from;
+              var spaceWidth = nextToken.textX - spaceX;
+              horizontalSpacer(svg, rowTextGroup, spaceX, token.row.textY, spaceWidth, {
+                "data-chunk-id": chunk.index
+              });
+            }
+            // END WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
+            // END WEBANNO EXTENSION - #316 Text selection behavior while dragging mouse
           }
-        }
+          // WEBANNO EXTENSION END
+
+          // chunk backgrounds
+          if (chunk.fragments.length) {
+            var orderedIdx = [];
+            for (var i = chunk.fragments.length - 1; i >= 0; i--) {
+              orderedIdx.push(i);
+            }
+
+            // Mark entity nesting height/depth (number of
+            // nested/nesting entities). To account for crossing
+            // brackets in a (mostly) reasonable way, determine
+            // depth/height separately in a left-to-right traversal
+            // and a right-to-left traversal.
+            orderedIdx.sort(lrChunkComp);
+
+            var openFragments = [];
+            for (var i = 0; i < orderedIdx.length; i++) {
+              var current = chunk.fragments[orderedIdx[i]];
+              current.nestingHeightLR = 0;
+              current.nestingDepthLR = 0;
+              var stillOpen = [];
+              for (var o = 0; o < openFragments.length; o++) {
+                if (openFragments[o].to > current.from) {
+                  stillOpen.push(openFragments[o]);
+                  openFragments[o].nestingHeightLR++;
+                }
+              }
+              openFragments = stillOpen;
+              current.nestingDepthLR = openFragments.length;
+              openFragments.push(current);
+            }
+
+            // re-sort for right-to-left traversal by end position
+            orderedIdx.sort(rlChunkComp);
+
+            openFragments = [];
+            for (var i = 0; i < orderedIdx.length; i++) {
+              var current = chunk.fragments[orderedIdx[i]];
+              current.nestingHeightRL = 0;
+              current.nestingDepthRL = 0;
+              var stillOpen = [];
+              for (var o = 0; o < openFragments.length; o++) {
+                if (openFragments[o].from < current.to) {
+                  stillOpen.push(openFragments[o]);
+                  openFragments[o].nestingHeightRL++;
+                }
+              }
+              openFragments = stillOpen;
+              current.nestingDepthRL = openFragments.length;
+              openFragments.push(current);
+            }
+
+            // the effective depth and height are the max of those
+            // for the left-to-right and right-to-left traversals.
+            for (var i = 0; i < orderedIdx.length; i++) {
+              var c = chunk.fragments[orderedIdx[i]];
+              c.nestingHeight = c.nestingHeightLR > c.nestingHeightRL ? c.nestingHeightLR : c.nestingHeightRL;
+              c.nestingDepth = c.nestingDepthLR > c.nestingDepthRL ? c.nestingDepthLR : c.nestingDepthRL;
+            }
+
+            // Re-order by nesting height and draw in order
+            orderedIdx.sort(function(a, b) {
+              return Util.cmp(chunk.fragments[b].nestingHeight, chunk.fragments[a].nestingHeight);
+            });
+
+            for (var i = 0; i < chunk.fragments.length; i++) {
+              var fragment = chunk.fragments[orderedIdx[i]];
+              var spanDesc = spanTypes[fragment.span.type];
+              var bgColor =
+                (spanDesc && spanDesc.bgColor) ||
+                (spanTypes.SPAN_DEFAULT && spanTypes.SPAN_DEFAULT.bgColor) ||
+                "#ffffff";
+              if (fragment.span.hidden) continue;
+
+              // WEBANNO EXTENSION BEGIN - #820 - Allow setting label/color individually
+              if (fragment.span.color) {
+                bgColor = fragment.span.color;
+              }
+              // WEBANNO EXTENSION END
+
+              // Tweak for nesting depth/height. Recognize just three
+              // levels for now: normal, nested, and nesting, where
+              // nested+nesting yields normal. (Currently testing
+              // minor tweak: don't shrink for depth 1 as the nesting
+              // highlight will grow anyway [check nestingDepth > 1])
+              var shrink = 0;
+              if (fragment.nestingDepth > 1 && fragment.nestingHeight == 0) {
+                shrink = 1;
+              } else if (fragment.nestingDepth == 0 && fragment.nestingHeight > 0) {
+                shrink = -1;
+              }
+              var yShrink = shrink * nestingAdjustYStepSize;
+              var xShrink = shrink * nestingAdjustXStepSize;
+              // bit lighter
+              var lightBgColor = Util.adjustColorLightness(bgColor, 0.8);
+              // tweak for Y start offset (and corresponding height
+              // reduction): text rarely hits font max height, so this
+              // tends to look better
+              var yStartTweak = 1;
+              // store to have same mouseover highlight without recalc
+              // WEBANNO EXTENSION BEGIN - RTL support - Highlight positions
+              /*
+                fragment.highlightPos = {
+                    x: chunk.textX + fragment.curly.from + xShrink,
+                    y: chunk.row.textY + sizes.texts.y + yShrink + yStartTweak,
+                    w: fragment.curly.to - fragment.curly.from - 2*xShrink,
+                    h: sizes.texts.height - 2*yShrink - yStartTweak,
+                };
+  */
+              // Store highlight coordinates
+              fragment.highlightPos = {
+                x: chunk.textX + (rtlmode ? fragment.curly.from - xShrink : fragment.curly.from + xShrink),
+                y: chunk.row.textY + sizes.texts.y + yShrink + yStartTweak,
+                w: fragment.curly.to - fragment.curly.from - 2 * xShrink,
+                h: sizes.texts.height - 2 * yShrink - yStartTweak
+              };
+              // WEBANNO EXTENSION END
+              // WEBANNO EXTENSION BEGIN - #361 Avoid rendering exception with zero-width spans
+              // Avoid exception because width < 0 is not allowed
+              if (fragment.highlightPos.w <= 0) {
+                fragment.highlightPos.w = 1;
+              }
+              // WEBANNO EXTENSION END - #361 Avoid rendering exception with zero-width spans
+              // Render highlight
+              svg.rect(
+                highlightGroup,
+                fragment.highlightPos.x,
+                fragment.highlightPos.y,
+                fragment.highlightPos.w,
+                fragment.highlightPos.h,
+                {
+                  fill: lightBgColor, //opacity:1,
+                  rx: highlightRounding.x,
+                  ry: highlightRounding.y
+                }
+              );
+            }
+          }
+          // TODO:extension end - 18 - draw token text
+        });
       });
 
       // BEGIN WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
