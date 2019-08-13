@@ -2236,7 +2236,7 @@ var Visualizer = (function($, window, undefined) {
             var bx = xx - Configuration.visual.margin.x - boxTextMargin.x;
             // TODO:extension begin - 14 - add annotation shape and approve
             if (fragment.shape === "circle") {
-              token.rect = svg.circle(fragment.group, bx + bw / 2, by - bh / 2, bw / 2, {
+              token.circle = svg.circle(fragment.group, bx + bw / 2, by + bh / 2 - span.floor, bw / 2, {
                 class: rectClass,
                 fill: bgColor,
                 stroke: borderColor,
@@ -2247,7 +2247,7 @@ var Visualizer = (function($, window, undefined) {
                 strokeDashArray: span.attributeMerge.dashArray
               });
             } else {
-              token.rect = svg.rect(fragment.group, bx, by, bw, bh, {
+              token.rect = svg.rect(fragment.group, bx, by - span.floor, bw, bh, {
                 class: rectClass,
                 fill: bgColor,
                 stroke: borderColor,
@@ -2294,9 +2294,9 @@ var Visualizer = (function($, window, undefined) {
           }
           // TODO:estension begin - 08 - add token rect
           // $(fragment.rect).attr('y', yy - Configuration.visual.margin.y - span.floor);
-          fragment.tokens.forEach(function(token) {
-            $(token.rect).attr("y", yy - Configuration.visual.margin.y - span.floor);
-          });
+          // fragment.tokens.forEach(function(token) {
+          //   $(token.rect).attr("y", yy - Configuration.visual.margin.y - span.floor);
+          // });
           // TODO:estension end - 08 - add token rect
           if (shadowRect) {
             $(shadowRect).attr("y", yy - rectShadowSize - Configuration.visual.margin.y - span.floor);
@@ -2344,7 +2344,7 @@ var Visualizer = (function($, window, undefined) {
               curlyColor = Util.adjustColorLightness(bgColor, -0.6);
             }
 
-            var bottom = yy + hh + Configuration.visual.margin.y - span.floor + 1;
+            var bottom = yy + hh + Configuration.visual.margin.y - span.floor;
             // svg.path(fragment.group, svg.createPath()
             //     .move(fragment.curly.from, bottom + Configuration.visual.curlyHeight)
             //     .curveC(fragment.curly.from, bottom,
