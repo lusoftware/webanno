@@ -905,7 +905,9 @@ var Visualizer = (function($, window, undefined) {
           from,
           to,
           text: data.text.substring(from, to),
-          lastSpace: ""
+          lastSpace: "",
+          rect: [],
+          circle: []
         };
         // TODO:extension start - 05 - add space to token
         var nextOffset = sourceData.token_offsets[offsetNo + 1];
@@ -1021,7 +1023,9 @@ var Visualizer = (function($, window, undefined) {
         // TODO:extension begin - 07 - add token to fragment
         fragment.tokens = [];
         chunk.tokens.forEach(function(token) {
-          token.fragments = [];
+          if (!token.fragments) {
+            token.fragments = [];
+          }
           if (token.from >= fragment.from && token.to <= fragment.to) {
             token.fragments.push(fragment);
             fragment.tokens.push(token);
@@ -1363,6 +1367,89 @@ var Visualizer = (function($, window, undefined) {
       $(element.group).attr("transform", "translate(" + x + ", " + y + ")");
       element.translation = { x: x, y: y };
     };
+
+    // TODO:extension begin - 20 - translate token
+    var translateRect = function(token, hasRect, x, chunk) {
+      if (token.rect.length > 0) {   
+        token.rect.forEach(function(rect) {
+          var fragmentId = $(rect).attr("fragment-id");
+          var fragmentWidth = chunk.fragments[fragmentId].width;
+          $(rect).attr(
+            "x",
+            x + (token.curly.width - fragmentWidth - 2 * Configuration.visual.margin.x + 2 * boxTextMargin.x) / 2
+          );
+        });
+        hasRect = true;
+      }
+      if (token.circle.length > 0) {
+        token.circle.forEach(function(circle) {
+          $(circle).attr("cx", x + token.curly.width / 2);
+        });
+        hasRect = true;
+      }
+      return hasRect;
+    };
+
+    var translateCurly = function(chunk, x, y) {
+      var curly = $(chunk.group).find("path[translate!='']");
+      curly.attr("transform", "translate(" + x + ", " + y + ")");
+    };
+
+    var formatRect = function(rows, chunk, lineCount) {
+      var preRow = rows[rows.length - 1];
+      var preRect = $(chunk.group).find(
+        "rect[line-count=" + (lineCount - 1) + "],circle[line-count=" + (lineCount - 1) + "]"
+      );
+      var mvRect = null;
+      var formatGroup = svg.group(preRow.group, { class: "span" });
+      preRect.each(function(index, rect) {
+        mvRect = svg.remove(rect);
+        svg.add(formatGroup, rect);
+      });
+      return formatGroup;
+    };
+
+    var formatCUrly = function(rows, chunk, lineCount) {
+      var row = rows[rows.length - lineCount];
+      var fragmentGroup = chunk.group.lastElementChild;
+      if (!fragmentGroup) {
+        return;
+      }
+      var preCurly = $(fragmentGroup).find("path")[0];
+      if (!preCurly) {
+        return;
+      }
+      var formatGroup = row.group.lastElementChild;
+      if (preCurly) {
+        svg.remove(preCurly);
+        svg.add(formatGroup, preCurly);
+      }
+      return formatGroup;
+    };
+
+    var drawCurly = function(group, from, to, bh, bottom, curlyHeight, curlyColor) {
+      var offset = 6;
+      var harf = bh / 2;
+      svg.path(
+        group,
+        svg
+          .createPath()
+          .move(from, bottom + curlyHeight)
+          .curveC(from - offset, bottom + curlyHeight, from, bottom - harf, from - offset, bottom - harf)
+          .curveC(from, bottom - harf, from - offset, bottom - bh - curlyHeight, from, bottom - bh - curlyHeight),
+        { class: "curly", stroke: curlyColor }
+      );
+      svg.path(
+        group,
+        svg
+          .createPath()
+          .move(to, bottom + curlyHeight)
+          .curveC(to + offset, bottom + curlyHeight, to, bottom - harf, to + offset, bottom - harf)
+          .curveC(to, bottom - harf, to + offset, bottom - bh - curlyHeight, to, bottom - bh - curlyHeight),
+        { class: "curly", stroke: curlyColor }
+      );
+    };
+    // TODO:extension end - 20 - translate token
 
     var showMtime = function() {
       if (data.mtime) {
@@ -2237,34 +2324,45 @@ var Visualizer = (function($, window, undefined) {
           // TODO:estension end - 02 - remove fragment rect
 
           // TODO:estension begin - 08 - add token rect
-          fragment.tokens.forEach(function(token, tokenNo) {
+          fragment.tokens.forEach(function(token) {
+            // TODO:extension begin - 20 - translate token
+            tokenNo = chunk.tokens.indexOf(token);
+            // TODO:extension end - 20 - translate token
             var x = (token.curly.from + token.curly.to) / 2;
             var xx = x - ww / 2;
             xx += boxTextMargin.x;
             var bx = xx - Configuration.visual.margin.x - boxTextMargin.x;
             // TODO:extension begin - 14 - add annotation shape and approve
             if (fragment.shape === "circle") {
-              token.circle = svg.circle(fragment.group, bx + bw / 2, by + bh / 2 - span.floor, bw / 2, {
-                class: rectClass,
-                fill: bgColor,
-                stroke: borderColor,
-                rx: Configuration.visual.margin.x,
-                ry: Configuration.visual.margin.y,
-                "data-span-id": span.id,
-                "data-fragment-id": span.segmentedOffsetsMap[fragment.id],
-                strokeDashArray: span.attributeMerge.dashArray
-              });
+              token.circle.push(
+                svg.circle(fragment.group, bx + bw / 2, by + bh / 2 - span.floor, bw / 2, {
+                  class: rectClass,
+                  fill: bgColor,
+                  stroke: borderColor,
+                  rx: Configuration.visual.margin.x,
+                  ry: Configuration.visual.margin.y,
+                  "data-span-id": span.id,
+                  "data-fragment-id": span.segmentedOffsetsMap[fragment.id],
+                  "token-id": tokenNo,
+                  "fragment-id": fragmentNo,
+                  strokeDashArray: span.attributeMerge.dashArray
+                })
+              );
             } else {
-              token.rect = svg.rect(fragment.group, bx, by - span.floor, bw, bh, {
-                class: rectClass,
-                fill: bgColor,
-                stroke: borderColor,
-                rx: Configuration.visual.margin.x,
-                ry: Configuration.visual.margin.y,
-                "data-span-id": span.id,
-                "data-fragment-id": span.segmentedOffsetsMap[fragment.id],
-                strokeDashArray: span.attributeMerge.dashArray
-              });
+              token.rect.push(
+                svg.rect(fragment.group, bx, by - span.floor, bw, bh, {
+                  class: rectClass,
+                  fill: bgColor,
+                  stroke: borderColor,
+                  rx: Configuration.visual.margin.x,
+                  ry: Configuration.visual.margin.y,
+                  "data-span-id": span.id,
+                  "data-fragment-id": span.segmentedOffsetsMap[fragment.id],
+                  "token-id": tokenNo,
+                  "fragment-id": fragmentNo,
+                  strokeDashArray: span.attributeMerge.dashArray
+                })
+              );
             }
             // TODO:extension end - 14 - add annotation shape and approve
           });
@@ -2366,59 +2464,14 @@ var Visualizer = (function($, window, undefined) {
             //     'stroke': curlyColor,
             //   });
             // TODO:extension begin - 09 - add both curly
-            var offset = 6;
-            var harf = bh / 2;
-            svg.path(
+            drawCurly(
               fragment.group,
-              svg
-                .createPath()
-                .move(fragment.curly.from, bottom + Configuration.visual.curlyHeight)
-                .curveC(
-                  fragment.curly.from - offset,
-                  bottom + Configuration.visual.curlyHeight,
-                  fragment.curly.from,
-                  bottom - harf,
-                  fragment.curly.from - offset,
-                  bottom - harf
-                )
-                .curveC(
-                  fragment.curly.from,
-                  bottom - harf,
-                  fragment.curly.from - offset,
-                  bottom - bh - Configuration.visual.curlyHeight,
-                  fragment.curly.from,
-                  bottom - bh - Configuration.visual.curlyHeight
-                ),
-              {
-                class: "curly",
-                stroke: curlyColor
-              }
-            );
-            svg.path(
-              fragment.group,
-              svg
-                .createPath()
-                .move(fragment.curly.to, bottom + Configuration.visual.curlyHeight)
-                .curveC(
-                  fragment.curly.to + offset,
-                  bottom + Configuration.visual.curlyHeight,
-                  fragment.curly.to,
-                  bottom - harf,
-                  fragment.curly.to + offset,
-                  bottom - harf
-                )
-                .curveC(
-                  fragment.curly.to,
-                  bottom - harf,
-                  fragment.curly.to + offset,
-                  bottom - bh - Configuration.visual.curlyHeight,
-                  fragment.curly.to,
-                  bottom - bh - Configuration.visual.curlyHeight
-                ),
-              {
-                class: "curly",
-                stroke: curlyColor
-              }
+              fragment.curly.from,
+              fragment.curly.to,
+              bh,
+              bottom,
+              Configuration.visual.curlyHeight,
+              curlyColor
             );
             // TODO:extension end - 09 - add both curly
             chunkFrom = Math.min(fragment.curly.from, chunkFrom);
@@ -2551,9 +2604,14 @@ var Visualizer = (function($, window, undefined) {
 
         // TODO:extension begin - 15 - evaluate row by token width
         var firstX = currentX;
+        var frontX = currentX;
+        var hasRect = false;
+        var lineCount = 0;
+        var preToken = null;
         chunk.tokens.forEach(function(token, tokenNo) {
           if (tokenNo === 0) {
             firstX = currentX;
+            frontX = currentX;
           }
           // positioning of the chunk
           chunk.right = chunkTo;
@@ -2653,6 +2711,12 @@ var Visualizer = (function($, window, undefined) {
 
           // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
           if (chunk.sentence > sourceData.sentence_number_offset || chunkDoesNotFit) {
+            // TODO:extension begin - 20 - translate token
+            if (tokenNo > 0) {
+              lineCount++;
+              row.chunks.push(chunk);
+            }
+            // TODO:extension end - 20 - translate token
             // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
             // WEBANNO EXTENSION END
 
@@ -2703,6 +2767,11 @@ var Visualizer = (function($, window, undefined) {
                 spaceWidth*/ +
                 indent;
             }
+            // TODO:extension begin - 20 - translate token
+            if (chunkDoesNotFit) {
+              firstX = currentX;
+            }
+            // TODO:extension begin - 20 - translate token
             // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
             // WEBANNO EXTENSION END - RTL support - [currentX] reset after soft-wrap
             if (hasLeftArcs) {
@@ -2723,7 +2792,9 @@ var Visualizer = (function($, window, undefined) {
 
             // new row
             rows.push(row);
-
+            // TODO:extension begin - 20 - translate token
+            var formatGroup = formatRect(rows, chunk, lineCount);
+            // TODO:extension end - 20 - translate token
             svg.remove(chunk.group);
             row = new Row(svg);
             // WEBANNO EXTENSION BEGIN - #1315 - Various issues with line-oriented mode
@@ -2751,6 +2822,22 @@ var Visualizer = (function($, window, undefined) {
             //       chunk.fragments[index].rect = element;
             //   });
             // TODO:extension end - 02 - remove fragment rect
+            // TODO:extension begin - 20 - translate token
+            chunk.tokens.forEach(function(t) {
+              t.rect = [];
+              t.circle = [];
+            });
+            $(chunk.group)
+              .find("rect[token-id]")
+              .each(function(index, element) {
+                chunk.tokens[$(element).attr("token-id")].rect.push(element);
+              });
+            $(chunk.group)
+              .find("circle[token-id]")
+              .each(function(index, element) {
+                chunk.tokens[$(element).attr("token-id")].circle.push(element);
+              });
+            // TODO:extension end - 20 - translate token
           }
 
           // break the text highlights when the row breaks
@@ -2810,6 +2897,9 @@ var Visualizer = (function($, window, undefined) {
           if (chunk.sentence > sourceData.sentence_number_offset) {
             // WEBANNO EXTENSION END - #1315 - Various issues with line-oriented mode
             row.sentence = ++sentenceNumber;
+            // TODO:extension begin - 21 - add row space
+            delete chunk.sentence;
+            // TODO:extension end - 21 - add row space
           }
 
           if (spacing > 0) {
@@ -2830,7 +2920,17 @@ var Visualizer = (function($, window, undefined) {
               }
             }
           }
-
+          // TODO:extension begin - 20 - translate token
+          hasRect = translateRect(token, hasRect, currentX, chunk);
+          token.lineCount = lineCount;
+          token.rect.forEach(function(rect) {
+            $(rect).attr("line-count", lineCount);
+          });
+          token.circle.forEach(function(rect) {
+            $(rect).attr("line-count", lineCount);
+          });
+          preToken = token;
+          // TODO:extension end - 20 - translate token
           // TODO:extension begin - 15 - evaluate row by token width
           row.tokens.push(token);
           token.row = row;
@@ -2865,7 +2965,15 @@ var Visualizer = (function($, window, undefined) {
           }
           // TODO:extension end - 17 - evaluate token X position
         });
-        translate(chunk, firstX, 0);
+        // TODO:extension start - 20 - translate token
+        if (!hasRect) {
+          translate(chunk, firstX, 0);
+        }
+        translateCurly(chunk, frontX, 0);
+        if (lineCount > 0) {
+          formatCUrly(rows, chunk, lineCount);
+        }
+        // TODO:extension end - 20 - translate token
         chunk.textX = currentX;
         row.chunks.push(chunk);
         chunk.row = row;
@@ -3651,12 +3759,34 @@ var Visualizer = (function($, window, undefined) {
       // END WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
       var currentSent;
       $.each(rows, function(rowId, row) {
+        // TODO:extension begin - 21 - add row space
         // find the maximum fragment height
-        $.each(row.chunks, function(chunkId, chunk) {
-          $.each(chunk.fragments, function(fragmentId, fragment) {
-            if (row.maxSpanHeight < fragment.height) row.maxSpanHeight = fragment.height;
-          });
+        // $.each(row.chunks, function(chunkId, chunk) {
+        //   $.each(chunk.fragments, function(fragmentId, fragment) {
+        //     if (row.maxSpanHeight < fragment.height) row.maxSpanHeight = fragment.height;
+        //   });
+        // });
+        // Find the chunk containing the most fragments
+        var mostFragments = null;
+        row.chunks.forEach(function(chunk) {
+          if (chunk.fragments && (!mostFragments || chunk.fragments.length > mostFragments.length)) {
+            mostFragments = chunk.fragments;
+          }
         });
+        // get fragment height array
+        var heightSet = new Set();
+        mostFragments.forEach(function(fragment) {
+          heightSet.add(fragment.height);
+        });
+        var heightArray = Array.from(heightSet).sort(function(a, b) {
+          return a - b;
+        });
+        $.each(row.tokens, function(tokenNo, token) {
+          if (token.fragments) {
+            row.maxSpanHeight = heightArray[token.fragments.length - 1];
+          }
+        });
+        // TODO:extension end - 21 - add row space
         if (row.sentence) {
           currentSent = row.sentence;
         }
@@ -3899,10 +4029,13 @@ var Visualizer = (function($, window, undefined) {
         chunk.tokens.forEach(function(token, tokenNo) {
           if (!rowTextGroup || preToken.row != token.row) {
             if (rowTextGroup) {
+              // TODO:extension begin - 21 - add row space
               horizontalSpacer(svg, rowTextGroup, 0, prevChunk.row.textY, 1, {
                 "data-chunk-id": prevChunk.index,
+                "data-token-id": tokenNo - 1,
                 class: "row-final spacing"
               });
+              // TODO:extension end - 21 - add row space
             }
             rowTextGroup = svg.group(textGroup, { class: "text-row" });
           }
@@ -3973,12 +4106,14 @@ var Visualizer = (function($, window, undefined) {
             if (!rowTextGroup.firstChild) {
               horizontalSpacer(svg, rowTextGroup, 0, chunk.row.textY, 1, {
                 class: "row-initial spacing",
-                "data-chunk-id": chunk.index
+                "data-chunk-id": chunk.index,
+                "data-token-id": tokenNo
               });
             }
 
             svg.text(rowTextGroup, token.textX, token.row.textY, token.text, {
-              "data-chunk-id": chunk.index
+              "data-chunk-id": chunk.index,
+              "data-token-id": tokenNo
             });
 
             // If there needs to be space between this chunk and the next one, add a spacer
@@ -3988,7 +4123,8 @@ var Visualizer = (function($, window, undefined) {
               var spaceX = chunk.textX + token.curly.to - token.curly.from;
               var spaceWidth = nextToken.textX - spaceX;
               horizontalSpacer(svg, rowTextGroup, spaceX, token.row.textY, spaceWidth, {
-                "data-chunk-id": chunk.index
+                "data-chunk-id": chunk.index,
+                "data-token-id": tokenNo
               });
             }
             // END WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
@@ -4543,7 +4679,7 @@ var Visualizer = (function($, window, undefined) {
         highlight = [];
         $.each(span.fragments, function(fragmentNo, fragment) {
           // TODO:extension begin - 19 - draw text highlight
-          fragment.tokens.forEach(function(token){
+          fragment.tokens.forEach(function(token) {
             highlight.push(
               svg.rect(
                 highlightGroup,

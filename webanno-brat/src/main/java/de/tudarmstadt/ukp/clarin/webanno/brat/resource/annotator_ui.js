@@ -1722,6 +1722,7 @@ var AnnotatorUI = (function($, window, undefined) {
       };
 
       var onMouseUp = function(evt) {
+        console.debug("触发一次", evt);
         if (that.user === null) return;
 
 // BEGIN WEBANNO EXTENSION - #724 - Cross-row selection is jumpy
@@ -1739,7 +1740,10 @@ var AnnotatorUI = (function($, window, undefined) {
         var targetSpanId = target.data('span-id');
         var targetChunkId = target.data('chunk-id');
         var targetArcRole = target.data('arc-role');
-        if (!(targetSpanId !== undefined || targetChunkId !== undefined || targetArcRole !== undefined)) {
+        // TODO:extension begin - 21 - add row space
+        var targetTokenId = target.data('token-id');
+        // TODO:extension end - 21 - add row space
+        if (!(targetSpanId !== undefined || targetChunkId !== undefined || targetArcRole !== undefined || targetTokenId !== undefined)) {
           // misclick
           clearSelection();
           stopArcDrag(target);
@@ -1778,7 +1782,9 @@ var AnnotatorUI = (function($, window, undefined) {
         } else if (!evt.ctrlKey) {
           // if not, then is it span selection? (ctrl key cancels)
           var sel = window.getSelection();
-
+          console.debug("selection", sel.toString());
+          console.debug("start", sel.anchorOffset.toString());
+          console.debug("end", sel.focusOffset.toString());
 // BEGIN WEBANNO EXTENSION - #316 Text selection behavior while dragging mouse
 /*
           var chunkIndexFrom = sel.anchorNode && $(sel.anchorNode.parentNode).attr('data-chunk-id');
@@ -1865,6 +1871,10 @@ var AnnotatorUI = (function($, window, undefined) {
           
           var chunkIndexFrom = anchorNode && anchorNode.attr('data-chunk-id');
           var chunkIndexTo = focusNode && focusNode.attr('data-chunk-id');
+          // TODO:extension begin - 21 - add row space
+          var tokenIndexFrom = anchorNode && anchorNode.attr('data-token-id');
+          var tokenIndexTo = focusNode && focusNode.attr('data-token-id');
+          // TODO:extension end - 21 - add row space
           
 // END WEBANNO EXTENSION - #316 Text selection behavior while dragging mouse
           
@@ -1878,12 +1888,18 @@ var AnnotatorUI = (function($, window, undefined) {
                 anchorNode = focusNode = anchorNode.prev();
                 anchorOffset = focusOffset = anchorNode.text().length;
                 chunkIndexFrom = chunkIndexTo = anchorNode.attr('data-chunk-id');
+                // TODO:extension begin - 21 - add row space
+                tokenIndexFrom = tokenIndexTo = anchorNode.attr('data-token-id');
+                // TODO:extension end - 21 - add row space
               }
               else {
                 // Move anchor to the beginning of the next node
                 anchorNode = focusNode = anchorNode.next();
                 anchorOffset = focusOffset = 0;
                 chunkIndexFrom = chunkIndexTo = anchorNode.attr('data-chunk-id');
+                // TODO:extension begin - 21 - add row space
+                tokenIndexFrom = tokenIndexTo = anchorNode.attr('data-token-id');
+                // TODO:extension end - 21 - add row space
               }
             }
             else {
@@ -1901,6 +1917,9 @@ var AnnotatorUI = (function($, window, undefined) {
                 anchorNode = anchorNode.next();
                 anchorOffset = 0;
                 chunkIndexFrom = anchorNode.attr('data-chunk-id');
+                // TODO:extension begin - 21 - add row space
+                tokenIndexFrom = anchorNode.attr('data-token-id');
+                // TODO:extension end - 21 - add row space
               }
               else if (anchorNode.hasClass('row-initial')) {
                 anchorNode = anchorNode.next();
@@ -1916,6 +1935,9 @@ var AnnotatorUI = (function($, window, undefined) {
                 focusNode = focusNode.next();
                 focusOffset = 0;
                 chunkIndexTo = focusNode.attr('data-chunk-id');
+                // TODO:extension begin - 21 - add row space
+                tokenIndexTo = focusNode.attr('data-token-id');
+                // TODO:extension end - 21 - add row space
               }
               else if (focusNode.hasClass('row-initial')) {
                 focusNode = focusNode.next();
@@ -1933,8 +1955,14 @@ var AnnotatorUI = (function($, window, undefined) {
           if (chunkIndexFrom !== undefined && chunkIndexTo !== undefined) {
             var chunkFrom = data.chunks[chunkIndexFrom];
             var chunkTo = data.chunks[chunkIndexTo];
-            var selectedFrom = chunkFrom.from + anchorOffset;
-            var selectedTo = chunkTo.from + focusOffset;
+            // TODO:extension begin - 21 - add row space
+            var tokenFrom = chunkFrom.tokens[tokenIndexFrom];
+            var tokenTo = chunkTo.tokens[tokenIndexTo];
+            var selectedFrom = tokenFrom.from + anchorOffset;
+            var selectedTo = tokenTo.from + focusOffset;
+            // TODO:extension end - 21 - add row space
+            console.debug("selectedFrom", tokenFrom);
+            console.debug("selectedTo", tokenTo);
             sel.removeAllRanges();
 
             if (selectedFrom > selectedTo) {
