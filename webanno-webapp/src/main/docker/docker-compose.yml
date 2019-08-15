@@ -27,7 +27,7 @@ services:
     networks:
       webanno-net:
     ports:
-      - "33061:3306"
+      - "${MYSQL_PORT}:3306"
 
   webserver:
     # image: "webanno/webanno-snapshots:{revnumber}"

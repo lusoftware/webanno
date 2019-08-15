@@ -1,5 +1,7 @@
 # packaging and running
-current=${PWD}
+export WEBANNO_HOME=${PWD}
+export WEBANNO_PORT="8081"
+export MYSQL_PORT="3306"
 runDir="webanno-webapp/src/main/docker"
 package="webanno-webapp/target/webanno-standalone-3.6.0-SNAPSHOT.jar"
 
@@ -8,4 +10,4 @@ cp -rf ${package} ${runDir}
 cd ${runDir}
 docker image build -t lusoftware/webanno .
 docker-compose up -d
-cd ${current}
+cd ${WEBANNO_HOME}
