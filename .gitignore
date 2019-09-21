@@ -10,3 +10,7 @@ target
 webanno-doc/src/main/resources/public
 .checkstyle
 log4j2-dev.xml
+mysql-data
+server-data
+.factorypath
+*.jar

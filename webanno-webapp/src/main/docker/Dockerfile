@@ -21,7 +21,7 @@ ENV LANG en_US.UTF-8
 
 WORKDIR /opt/webanno
 
-COPY @docker.jarfile@ webanno-standalone.jar
+COPY webanno-standalone-3.6.0-SNAPSHOT.jar webanno-standalone.jar
 
 # this will be the WebAnno home folder
 RUN mkdir /export
@@ -31,4 +31,4 @@ EXPOSE 8080
 
 ENV JAVA_OPTS="-Xmx750m"
 
-CMD java ${JAVA_OPTS} -Djava.awt.headless=true -XX:+UseConcMarkSweepGC -Dwebanno.home=/export -jar webanno-standalone.jar
+CMD java ${JAVA_OPTS} -Djava.awt.headless=true -XX:+UseConcMarkSweepGC -Dwebanno.home=/export -Dwebanno.remote-api.enable=true -jar webanno-standalone.jar
