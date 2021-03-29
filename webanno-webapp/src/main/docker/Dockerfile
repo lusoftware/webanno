@@ -6,8 +6,6 @@
 
 FROM openjdk:8
 
-MAINTAINER WebAnno Team
-
 # make sure webanno is running in en_US.UTF-8 locale
 RUN set -ex \
       && DEBIAN_FRONTEND=noninteractive \
